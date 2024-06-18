@@ -4,17 +4,17 @@ import (
 	"context"
 )
 
-type LVOptions struct {
-	// Name of the logical volume to retrieve.
+type LVsOptions struct {
+	// VolumeGroupName of the volume group to retrieve volumes from.
 	// If empty, all logical volumes are returned.
-	Name string
+	VolumeGroupName string
 	// TODO: Add select options
 }
 
 // LVs returns a list of logical volumes that match the given options.
 // If no logical volumes are found, nil is returned.
 // It is really just a wrapper around the `lvs --reportformat json` command.
-func LVs(ctx context.Context, opts LVOptions) ([]LogicalVolume, error) {
+func LVs(ctx context.Context, opts LVsOptions) ([]LogicalVolume, error) {
 	type lvReport struct {
 		Report []struct {
 			LV []LogicalVolume `json:"lv"`
@@ -25,7 +25,7 @@ func LVs(ctx context.Context, opts LVOptions) ([]LogicalVolume, error) {
 
 	args := []string{
 		"lvs",
-		opts.Name,
+		opts.VolumeGroupName,
 		"-o",
 		"lv_uuid,lv_name,lv_full_name,lv_path,lv_size," +
 			"lv_kernel_major,lv_kernel_minor,origin,origin_size,pool_lv,lv_tags," +

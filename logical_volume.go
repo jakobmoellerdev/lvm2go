@@ -74,9 +74,17 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 }
 
 func unmarshalAndConvertToUint64(raw map[string]json.RawMessage, key string, fieldPtr *uint64) error {
+	if raw[key] == nil || len(raw[key]) == 0 {
+		*fieldPtr = 0
+		return nil
+	}
 	var str string
 	if err := json.Unmarshal(raw[key], &str); err != nil {
 		return err
+	}
+	if str == "" {
+		*fieldPtr = 0
+		return nil
 	}
 	val, err := strconv.ParseUint(str, 10, 64)
 	if err != nil {
@@ -87,9 +95,17 @@ func unmarshalAndConvertToUint64(raw map[string]json.RawMessage, key string, fie
 }
 
 func unmarshalAndConvertToFloat64(raw map[string]json.RawMessage, key string, fieldPtr *float64) error {
+	if raw[key] == nil || len(raw[key]) == 0 {
+		*fieldPtr = 0
+		return nil
+	}
 	var str string
 	if err := json.Unmarshal(raw[key], &str); err != nil {
 		return err
+	}
+	if str == "" {
+		*fieldPtr = 0
+		return nil
 	}
 	val, err := strconv.ParseFloat(str, 64)
 	if err != nil {

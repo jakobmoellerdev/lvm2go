@@ -6,7 +6,7 @@ import (
 
 var (
 	lvmBinaryPathLock = &sync.RWMutex{}
-	lvmBinaryPath     = "/sbin/lvmBinaryPath"
+	lvmBinaryPath     = "/sbin/lvm"
 )
 
 // SetLVMPath sets the Path to the lvmBinaryPath command.
