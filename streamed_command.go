@@ -21,7 +21,19 @@ func StreamedCommand(ctx context.Context, cmd *exec.Cmd) (io.ReadCloser, error) 
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "invoking command", "args", cmd.Args)
+	slog.DebugContext(ctx, "invoking command", "args", cmd.Args, "env", cmd.Env, "pwd", cmd.Dir)
+
+	cmd.Cancel = func() error {
+		slog.WarnContext(ctx, "killing streamed command process due to ctx cancel")
+		if err := stdout.Close(); err != nil {
+			return err
+		}
+		if err := stderr.Close(); err != nil {
+			return err
+		}
+		return cmd.Process.Kill()
+	}
+
 	if err := cmd.Start(); err != nil {
 		_ = stdout.Close()
 		_ = stderr.Close()

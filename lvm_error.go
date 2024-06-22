@@ -1,7 +1,9 @@
 package lvm2go
 
 import (
+	"fmt"
 	"regexp"
+	"runtime"
 )
 
 var (
@@ -21,4 +23,9 @@ func IsLVMNotFound(err error) bool {
 	}
 
 	return NotFoundPattern.Match([]byte(lvmErr.Error()))
+}
+
+func errFromToArgs(err error) error {
+	pc, _, _, _ := runtime.Caller(2) // skip 2 frames (this function and the ApplyToArgs call)
+	return fmt.Errorf("%s: %v", runtime.FuncForPC(pc).Name(), err)
 }

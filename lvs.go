@@ -4,17 +4,30 @@ import (
 	"context"
 )
 
-type LVsOptions struct {
-	// VolumeGroupName of the volume group to retrieve volumes from.
-	// If empty, all logical volumes are returned.
-	VolumeGroupName string
-	// TODO: Add select options
-}
+type (
+	LVsOptions struct {
+		VolumeGroupName
+		Tags
+		Select
+
+		ColumnOptions
+		CommonOptions
+	}
+	LVsOption interface {
+		ApplyToLVsOptions(opts *LVsOptions)
+	}
+	LVsOptionsList []LVsOption
+)
+
+var (
+	_ ArgumentGenerator = LVsOptionsList{}
+	_ Argument          = (*LVsOptions)(nil)
+)
 
 // LVs returns a list of logical volumes that match the given options.
 // If no logical volumes are found, nil is returned.
 // It is really just a wrapper around the `lvs --reportformat json` command.
-func LVs(ctx context.Context, opts LVsOptions) ([]LogicalVolume, error) {
+func (c *client) LVs(ctx context.Context, opts ...LVsOption) ([]LogicalVolume, error) {
 	type lvReport struct {
 		Report []struct {
 			LV []LogicalVolume `json:"lv"`
@@ -24,19 +37,14 @@ func LVs(ctx context.Context, opts LVsOptions) ([]LogicalVolume, error) {
 	var res = new(lvReport)
 
 	args := []string{
-		"lvs",
-		opts.VolumeGroupName,
-		"-o",
-		"lv_uuid,lv_name,lv_full_name,lv_path,lv_size," +
-			"lv_kernel_major,lv_kernel_minor,origin,origin_size,pool_lv,lv_tags," +
-			"lv_attr,vg_name,data_percent,metadata_percent,pool_lv",
-		"--units",
-		"b",
-		"--nosuffix",
-		"--reportformat",
-		"json",
+		"lvs", "--reportformat", "json",
 	}
-	err := RunLVMInto(ctx, res, args...)
+	argsFromOpts, err := LVsOptionsList(opts).AsArgs()
+	if err != nil {
+		return nil, err
+	}
+
+	err = RunLVMInto(ctx, res, append(args, argsFromOpts.GetRaw()...)...)
 
 	if IsLVMNotFound(err) {
 		return nil, nil
@@ -57,4 +65,36 @@ func LVs(ctx context.Context, opts LVsOptions) ([]LogicalVolume, error) {
 	}
 
 	return lvs, nil
+}
+
+func (opts *LVsOptions) ApplyToArgs(args Arguments) error {
+	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	if err := opts.ColumnOptions.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (list LVsOptionsList) AsArgs() (Arguments, error) {
+	args := NewArgs(ArgsTypeLVs)
+	options := LVsOptions{}
+	for _, opt := range list {
+		opt.ApplyToLVsOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
+}
+
+func (opts *LVsOptions) ApplyToLVsOptions(new *LVsOptions) {
+	*new = *opts
 }

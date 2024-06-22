@@ -1,0 +1,94 @@
+package lvm2go
+
+import (
+	"context"
+)
+
+type (
+	VGsOptions struct {
+		VolumeGroupName
+		Tags
+		Select
+
+		ColumnOptions
+		CommonOptions
+	}
+	VGsOption interface {
+		ApplyToVGsOptions(opts *VGsOptions)
+	}
+	VGsOptionsList []VGsOption
+)
+
+var (
+	_ ArgumentGenerator = VGsOptionsList{}
+	_ Argument          = (*VGsOptions)(nil)
+)
+
+func (c *client) VGs(ctx context.Context, opts ...VGsOption) ([]VolumeGroup, error) {
+	type vgReport struct {
+		Report []struct {
+			VG []VolumeGroup `json:"vg"`
+		} `json:"report"`
+	}
+	res := new(vgReport)
+
+	args := []string{
+		"vgs", "--units", "b", "--nosuffix", "--reportformat", "json",
+	}
+	argsFromOpts, err := VGsOptionsList(opts).AsArgs()
+	if err != nil {
+		return nil, err
+	}
+
+	err = RunLVMInto(ctx, res, append(args, argsFromOpts.GetRaw()...)...)
+
+	if IsLVMNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.Report) == 0 {
+		return nil, nil
+	}
+
+	if len(res.Report[0].VG) == 0 {
+		return nil, nil
+	}
+
+	return res.Report[0].VG, nil
+}
+
+func (opts *VGsOptions) ApplyToArgs(args Arguments) error {
+	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	if err := opts.ColumnOptions.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (opts *VGsOptions) ApplyToVGsOptions(new *VGsOptions) {
+	*new = *opts
+}
+
+func (list VGsOptionsList) AsArgs() (Arguments, error) {
+	args := NewArgs(ArgsTypeVGs)
+	var options VGsOptions
+	for _, opt := range list {
+		opt.ApplyToVGsOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
+}

@@ -13,8 +13,27 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
+
+var sharedTestClient Client
+var sharedTestClientOnce sync.Once
+var sharedTestClientKey = struct{}{}
+
+func SetTestClient(ctx context.Context, client Client) context.Context {
+	return context.WithValue(ctx, sharedTestClientKey, client)
+}
+
+func GetTestClient(ctx context.Context) Client {
+	if client, ok := ctx.Value(sharedTestClientKey).(Client); ok {
+		return client
+	}
+	sharedTestClientOnce.Do(func() {
+		sharedTestClient = NewClient()
+	})
+	return sharedTestClient
+}
 
 func NewDeterministicTestID(t *testing.T) string {
 	return strconv.Itoa(int(NewDeterministicTestHash(t).Sum32()))
@@ -116,74 +135,44 @@ func MakeLoopbackDevice(ctx context.Context, name, size string) (string, error) 
 }
 
 type TestVolumeGroup struct {
-	Name string
+	Name VolumeGroupName
 	t    *testing.T
+	Devices
 }
 
 func MakeTestVolumeGroup(t *testing.T, devices ...string) TestVolumeGroup {
 	ctx := context.Background()
+	name := VolumeGroupName(NewNonDeterministicTestID(t))
+	c := GetTestClient(ctx)
 
-	name := NewNonDeterministicTestID(t)
-
-	logger := slog.With("name", name, "devices", devices)
-
-	err := MakeLoopbackVG(ctx, name, devices...)
-	if err != nil {
+	if err := c.VGCreate(ctx, name, PhysicalVolumeNamesFrom(devices...), Devices(devices)); err != nil {
 		t.Fatal(err)
 	}
 
 	t.Cleanup(func() {
-		logger.DebugContext(ctx, "cleaning up volume group ...")
-
-		if err := exec.CommandContext(ctx, "vgremove", "-f", name).Run(); err != nil {
+		if err := c.VGRemove(ctx, name, Devices(devices)); err != nil {
 			t.Fatal(fmt.Errorf("failed to remove volume group: %w", err))
 		}
-
-		logger.DebugContext(ctx, "cleaned up volume group")
 	})
 
 	return TestVolumeGroup{
-		Name: name,
-		t:    t,
+		Name:    name,
+		t:       t,
+		Devices: Devices(devices),
 	}
 }
 
-// MakeLoopbackVG creates a VG made from loopback Device by losetup
-// TODO replace with proper VGCreate call.
-func MakeLoopbackVG(ctx context.Context, name string, devices ...string) error {
-	logger := slog.With("name", name, "devices", devices)
-
-	args := append([]string{name}, devices...)
-	logger.DebugContext(ctx, "creating volume group ...")
-	out, err := exec.CommandContext(ctx, "vgcreate", args...).CombinedOutput()
-	if err != nil {
-		slog.ErrorContext(ctx, "failed vgcreate", "output", string(out), "error", err)
-		return err
-	}
-	logger.DebugContext(ctx, "created volume group")
-	return nil
-}
-
-type TestLogicalVolume string
-
-func (vg TestVolumeGroup) MakeTestLogicalVolume(size string) TestLogicalVolume {
+func (vg TestVolumeGroup) MakeTestLogicalVolume(size Size) LogicalVolumeName {
 	ctx := context.Background()
-	name := NewNonDeterministicTestID(vg.t)
-	logger := slog.With("name", name, "size", size, "vg", vg.Name)
-	args := []string{fmt.Sprintf("-L%s", size), "-n", name, vg.Name}
-	logger.DebugContext(ctx, "creating logical volume ...")
-	out, err := exec.CommandContext(ctx, "lvcreate", args...).CombinedOutput()
-	if err != nil {
-		vg.t.Fatal(fmt.Errorf("failed lvcreate: %w (stdout: %s)", err, string(out)))
+	logicalVolumeName := LogicalVolumeName(NewNonDeterministicTestID(vg.t))
+	c := GetTestClient(ctx)
+	if err := c.LVCreate(ctx, vg.Name, logicalVolumeName, size, vg.Devices); err != nil {
+		vg.t.Fatal(err)
 	}
-	logger.DebugContext(ctx, "created logical volume")
 	vg.t.Cleanup(func() {
-		logger.DebugContext(ctx, "cleaning up logical volume ...")
-		out, err := exec.CommandContext(ctx, "lvremove", "--force", filepath.Join(vg.Name, name)).CombinedOutput()
-		if err != nil {
-			vg.t.Fatal(fmt.Errorf("failed lvremove: %w (stdout: %s)", err, string(out)))
+		if err := c.LVRemove(ctx, vg.Name, logicalVolumeName, vg.Devices); err != nil {
+			vg.t.Fatal(err)
 		}
-		logger.DebugContext(ctx, "cleaned up logical volume")
 	})
-	return TestLogicalVolume(name)
+	return logicalVolumeName
 }
