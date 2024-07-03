@@ -1,6 +1,7 @@
 package lvm2go
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"sync"
@@ -11,7 +12,7 @@ var (
 	detectContainerized sync.Once
 )
 
-func IsContainerized() bool {
+func IsContainerized(ctx context.Context) bool {
 	detectContainerized.Do(func() {
 		if _, err := os.Stat("/.dockerenv"); err == nil {
 			isContainerized = true
@@ -19,7 +20,7 @@ func IsContainerized() bool {
 			isContainerized = true
 		}
 		if isContainerized {
-			slog.Debug("lvm2go is running in docker environment")
+			slog.DebugContext(ctx, "lvm2go is running in docker environment")
 		}
 	})
 	return isContainerized

@@ -30,7 +30,7 @@ func GetProcessCancelWaitDelay(ctx context.Context) time.Duration {
 func CommandContext(ctx context.Context, cmd string, args ...string) *exec.Cmd {
 	var c *exec.Cmd
 
-	if IsContainerized() {
+	if IsContainerized(ctx) {
 		args = append([]string{"-m", "-u", "-i", "-n", "-p", "-t", "1", cmd}, args...)
 		c = exec.CommandContext(ctx, nsenter, args...)
 	} else {

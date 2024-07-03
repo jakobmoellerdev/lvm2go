@@ -42,7 +42,7 @@ func (opt PhysicalVolumeName) ApplyToVGCreateOptions(opts *VGCreateOptions) {
 
 type PhysicalVolumeNames []PhysicalVolumeName
 
-func PhysicalVolumeNamesFrom(names ...string) PhysicalVolumeNames {
+func PhysicalVolumesFrom(names ...string) PhysicalVolumeNames {
 	opts := make(PhysicalVolumeNames, len(names))
 	for i, v := range names {
 		opts[i] = PhysicalVolumeName(v)

@@ -14,6 +14,7 @@ type (
 
 		Force
 		Zero
+		PhysicalExtentSize
 
 		CommonOptions
 	}
@@ -71,6 +72,10 @@ func (opts *VGCreateOptions) ApplyToArgs(args Arguments) error {
 	}
 
 	if err := opts.Zero.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	if err := opts.PhysicalExtentSize.ApplyToArgs(args); err != nil {
 		return err
 	}
 

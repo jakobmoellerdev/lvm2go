@@ -4,6 +4,12 @@ import (
 	"context"
 )
 
+type client struct{}
+
+func NewClient() Client {
+	return &client{}
+}
+
 type VolumeGroupClient interface {
 	VGs(ctx context.Context, opts ...VGsOption) ([]VolumeGroup, error)
 	VGCreate(ctx context.Context, opts ...VGCreateOption) error
@@ -19,14 +25,4 @@ type LogicalVolumeClient interface {
 type Client interface {
 	LogicalVolumeClient
 	VolumeGroupClient
-}
-
-type client struct{}
-
-func NewClient() Client {
-	return &client{}
-}
-
-func (c *client) RunLVM(ctx context.Context, args ...string) error {
-	return RunLVM(ctx, args...)
 }

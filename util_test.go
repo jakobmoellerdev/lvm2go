@@ -8,6 +8,7 @@ import (
 	"hash"
 	"hash/fnv"
 	"log/slog"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +17,10 @@ import (
 	"sync"
 	"testing"
 )
+
+const TestExtentBytes = 16 * 1024 * 1024 // 16MiB
+
+var TestExtentSize = MustParseSize(fmt.Sprintf("%dB", TestExtentBytes))
 
 var sharedTestClient Client
 var sharedTestClientOnce sync.Once
@@ -64,6 +69,16 @@ func NewNonDeterministicTestHash(t *testing.T) hash.Hash32 {
 	return hashedTestName
 }
 
+type TestLoopbackDevices []TestLoopbackDevice
+
+func (t TestLoopbackDevices) Devices() Devices {
+	var devices Devices
+	for _, loop := range t {
+		devices = append(devices, loop.Device)
+	}
+	return devices
+}
+
 // TestLoopbackDevice is a struct that holds the loopback Device and the backing file.
 // It is used to create a loopback Device for testing purposes.
 type TestLoopbackDevice struct {
@@ -71,7 +86,7 @@ type TestLoopbackDevice struct {
 	BackingFile string
 }
 
-func MakeTestLoopbackDevice(t *testing.T, size string) TestLoopbackDevice {
+func MakeTestLoopbackDevice(t *testing.T, size Size) TestLoopbackDevice {
 	ctx := context.Background()
 
 	backingFilePath := filepath.Join(t.TempDir(), fmt.Sprintf("%s.img", NewNonDeterministicTestID(t)))
@@ -111,7 +126,7 @@ func MakeTestLoopbackDevice(t *testing.T, size string) TestLoopbackDevice {
 //
 //	MakeLoopbackDevice(ctx, "/tmp/loopback.img", "4G")
 //	// returns /dev/loop0
-func MakeLoopbackDevice(ctx context.Context, name, size string) (string, error) {
+func MakeLoopbackDevice(ctx context.Context, name string, size Size) (string, error) {
 	command := exec.Command("losetup", "-f")
 	command.Stderr = os.Stderr
 	loop := bytes.Buffer{}
@@ -121,7 +136,15 @@ func MakeLoopbackDevice(ctx context.Context, name, size string) (string, error) 
 		return "", err
 	}
 	loopDev := strings.TrimRight(loop.String(), "\n")
-	out, err := exec.CommandContext(ctx, "truncate", fmt.Sprintf("--size=%s", size), name).CombinedOutput()
+
+	// add an extra extent to the size to account for metadata
+	size, err = size.ToUnit(UnitBytes)
+	if err != nil {
+		return "", err
+	}
+	size.Val = RoundUp(size.Val, TestExtentBytes) + TestExtentBytes
+
+	out, err := exec.CommandContext(ctx, "truncate", fmt.Sprintf("--size=%v", uint64(size.Val)), name).CombinedOutput()
 	if err != nil {
 		slog.ErrorContext(ctx, "failed truncate", "output", string(out), "error", err)
 		return "", err
@@ -134,10 +157,19 @@ func MakeLoopbackDevice(ctx context.Context, name, size string) (string, error) 
 	return loopDev, nil
 }
 
+// RoundUp rounds up n to the nearest multiple of x
+func RoundUp[T int | uint | float64](n, x T) T {
+	return T(math.Ceil(float64(n)/float64(x))) * x
+}
+
+// RoundDown rounds down n to the nearest multiple of x
+func RoundDown[T int | uint | float64](n, x T) T {
+	return T(math.Floor(float64(n)/float64(x))) * x
+}
+
 type TestVolumeGroup struct {
 	Name VolumeGroupName
 	t    *testing.T
-	Devices
 }
 
 func MakeTestVolumeGroup(t *testing.T, devices ...string) TestVolumeGroup {
@@ -145,34 +177,48 @@ func MakeTestVolumeGroup(t *testing.T, devices ...string) TestVolumeGroup {
 	name := VolumeGroupName(NewNonDeterministicTestID(t))
 	c := GetTestClient(ctx)
 
-	if err := c.VGCreate(ctx, name, PhysicalVolumeNamesFrom(devices...), Devices(devices)); err != nil {
+	if err := c.VGCreate(ctx, name, PhysicalVolumesFrom(devices...), PhysicalExtentSize(TestExtentSize)); err != nil {
 		t.Fatal(err)
 	}
 
 	t.Cleanup(func() {
-		if err := c.VGRemove(ctx, name, Devices(devices)); err != nil {
+		if err := c.VGRemove(ctx, name, Force(true)); err != nil {
 			t.Fatal(fmt.Errorf("failed to remove volume group: %w", err))
 		}
 	})
 
 	return TestVolumeGroup{
-		Name:    name,
-		t:       t,
-		Devices: Devices(devices),
+		Name: name,
+		t:    t,
 	}
 }
 
-func (vg TestVolumeGroup) MakeTestLogicalVolume(size Size) LogicalVolumeName {
+type TestLogicalVolume struct {
+	Name LogicalVolumeName
+	Size
+}
+
+func (vg TestVolumeGroup) MakeTestLogicalVolume(size Size) TestLogicalVolume {
 	ctx := context.Background()
+
+	size, err := size.ToUnit(UnitBytes)
+	if err != nil {
+		vg.t.Fatal(err)
+	}
+	size.Val = RoundUp(size.Val, TestExtentBytes)
+
 	logicalVolumeName := LogicalVolumeName(NewNonDeterministicTestID(vg.t))
 	c := GetTestClient(ctx)
-	if err := c.LVCreate(ctx, vg.Name, logicalVolumeName, size, vg.Devices); err != nil {
+	if err := c.LVCreate(ctx, vg.Name, logicalVolumeName, size); err != nil {
 		vg.t.Fatal(err)
 	}
 	vg.t.Cleanup(func() {
-		if err := c.LVRemove(ctx, vg.Name, logicalVolumeName, vg.Devices); err != nil {
+		if err := c.LVRemove(ctx, vg.Name, logicalVolumeName); err != nil {
 			vg.t.Fatal(err)
 		}
 	})
-	return logicalVolumeName
+	return TestLogicalVolume{
+		Name: logicalVolumeName,
+		Size: size,
+	}
 }

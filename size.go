@@ -16,14 +16,15 @@ var ErrCannotConvertSector = errors.New("cannot convert sector to other units")
 type Unit rune
 
 const (
-	UnitBytes  Unit = 'b'
-	UnitKiB    Unit = 'k'
-	UnitMiB    Unit = 'm'
-	UnitGiB    Unit = 'g'
-	UnitTiB    Unit = 't'
-	UnitPiB    Unit = 'p'
-	UnitEiB    Unit = 'e'
-	UnitSector Unit = 's'
+	conversionFactor      = 1024
+	UnitBytes        Unit = 'b'
+	UnitKiB          Unit = 'k'
+	UnitMiB          Unit = 'm'
+	UnitGiB          Unit = 'g'
+	UnitTiB          Unit = 't'
+	UnitPiB          Unit = 'p'
+	UnitEiB          Unit = 'e'
+	UnitSector       Unit = 's'
 	// UnitUnknown is used to represent the output unit when
 	// LVs or VGs are queried without specifying a unit. (--nosuffix)
 	UnitUnknown Unit = 'X'
@@ -81,7 +82,7 @@ var conversionTable = map[Unit]float64{
 
 func (opt Size) ToUnit(unit Unit) (Size, error) {
 	if opt.Unit == unit {
-		return opt, nil
+		return NewSize(opt.Val, opt.Unit), nil
 	}
 
 	if !IsValidUnit(unit) || opt.Unit == UnitUnknown {
@@ -92,14 +93,15 @@ func (opt Size) ToUnit(unit Unit) (Size, error) {
 		return Size{}, ErrCannotConvertSector
 	}
 
-	var factor float64
+	newVal := opt.Val
+
 	if conversionTable[opt.Unit] < conversionTable[unit] {
-		factor = conversionTable[unit] - conversionTable[opt.Unit]
+		newVal /= math.Pow(conversionFactor, conversionTable[unit]-conversionTable[opt.Unit])
 	} else {
-		factor = conversionTable[opt.Unit] - conversionTable[unit]
+		newVal *= math.Pow(conversionFactor, conversionTable[opt.Unit]-conversionTable[unit])
 	}
 
-	return NewSize(opt.Val*math.Pow(1024, factor), unit), nil
+	return NewSize(newVal, unit), nil
 }
 
 func (opt Size) String() string {

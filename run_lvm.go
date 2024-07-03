@@ -27,7 +27,7 @@ func RunLVMInto(ctx context.Context, into any, args ...string) error {
 	if into == nil {
 		scanner := bufio.NewScanner(output)
 		for scanner.Scan() {
-			slog.Info(strings.TrimSpace(scanner.Text()))
+			slog.InfoContext(ctx, strings.TrimSpace(scanner.Text()))
 		}
 		err = scanner.Err()
 	} else {

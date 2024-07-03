@@ -2,49 +2,153 @@ package lvm2go
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
 )
 
 func TestLVs(t *testing.T) {
+	FailTestIfNotRoot(t)
+	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
-	SkipTestIfNotRoot(t)
-
-	c := NewClient()
-
-	loop := MakeTestLoopbackDevice(t, "1G")
-	volumeGroup := MakeTestVolumeGroup(t, loop.Device)
-	logicalVolume := volumeGroup.MakeTestLogicalVolume(MustParseSize("100M"))
-
-	lvs, err := c.LVs(context.Background(), volumeGroup.Name, Devices{loop.Device})
-	if err != nil {
-		t.Fatal(err)
+	type test struct {
+		loopDevices []Size
+		lvs         []Size
 	}
 
-	if len(lvs) != 1 {
-		t.Fatalf("Expected 1 logical volume, got %d", len(lvs))
-	}
-
-	if lvs[0].Name != logicalVolume {
-		t.Fatalf("Expected logical volume name to be %s, got %s", logicalVolume, lvs[0].Name)
-	}
-
-	if eq, err := lvs[0].Size.IsEqualTo(MustParseSize("100M")); err != nil || !eq {
-		if err != nil {
-			t.Fatalf("Error comparing sizes: %s", err)
+	descriptionForTest := func(test test) string {
+		t.Helper()
+		totalLoopSize := 0.0
+		totalLVSize := 0.0
+		for _, size := range test.loopDevices {
+			sizeBytes, err := size.ToUnit(UnitBytes)
+			if err != nil {
+				t.Error(err)
+			}
+			totalLoopSize += sizeBytes.Val
 		}
-		t.Fatalf("Expected logical volume size to be %f, got %s", float64(100*1024*1024), lvs[0].Size)
+		for _, size := range test.lvs {
+			sizeBytes, err := size.ToUnit(UnitBytes)
+			if err != nil {
+				t.Error(err)
+			}
+			totalLVSize += sizeBytes.Val
+		}
+		loopSize, err := MustParseSize(fmt.Sprintf("%fB", totalLoopSize)).ToUnit(UnitGiB)
+		if err != nil {
+			t.Error(err)
+		}
+		lvSize, err := MustParseSize(fmt.Sprintf("%fB", totalLVSize)).ToUnit(UnitGiB)
+		if err != nil {
+			t.Error(err)
+		}
+		return fmt.Sprintf("loopCount=%v,loopSize=%v,lvCount=%v,lvSize=%v",
+			len(test.loopDevices), loopSize, len(test.lvs), lvSize)
 	}
 
-	if lvs[0].VolumeGroupName != volumeGroup.Name {
-		t.Fatalf("Expected volume group name to be %s, got %s", volumeGroup.Name, lvs[0].VolumeGroupName)
+	type deviceInfra struct {
+		loopDevices TestLoopbackDevices
+		volumeGroup TestVolumeGroup
+		lvs         []TestLogicalVolume
+	}
+
+	deviceInfraForTest := func(test test) deviceInfra {
+		var loopDevices TestLoopbackDevices
+		for _, size := range test.loopDevices {
+			loopDevices = append(loopDevices, MakeTestLoopbackDevice(t, size))
+		}
+		devices := loopDevices.Devices()
+
+		volumeGroup := MakeTestVolumeGroup(t, devices...)
+
+		var lvs []TestLogicalVolume
+		for _, size := range test.lvs {
+			lvs = append(lvs, volumeGroup.MakeTestLogicalVolume(size))
+		}
+
+		return deviceInfra{
+			loopDevices: loopDevices,
+			volumeGroup: volumeGroup,
+			lvs:         lvs,
+		}
+	}
+
+	for _, testCase := range []test{
+		{
+			loopDevices: []Size{
+				MustParseSize("1G"),
+			},
+			lvs: []Size{
+				MustParseSize("100M"),
+			},
+		},
+		{
+			loopDevices: []Size{
+				MustParseSize("100M"),
+			},
+			lvs: []Size{
+				MustParseSize("100M"),
+			},
+		},
+		{
+			loopDevices: []Size{
+				MustParseSize("1G"),
+			},
+			lvs: []Size{
+				MustParseSize("1G"),
+			},
+		},
+		{
+			loopDevices: []Size{
+				MustParseSize("4G"),
+			},
+			lvs: []Size{
+				MustParseSize("2G"),
+				MustParseSize("2G"),
+			},
+		},
+	} {
+		desc := descriptionForTest(testCase)
+		t.Run(desc, func(t *testing.T) {
+			FailTestIfNotRoot(t)
+
+			infra := deviceInfraForTest(testCase)
+
+			actualLVs, err := NewClient().LVs(context.Background(), infra.volumeGroup.Name)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(actualLVs) != len(testCase.lvs) {
+				t.Fatalf("Expected %d logical volumes, got %d", len(testCase.lvs), len(actualLVs))
+			}
+
+			for _, expectedLV := range infra.lvs {
+				found := false
+				for _, lv := range actualLVs {
+					if lv.Name != expectedLV.Name {
+						continue
+					}
+					found = true
+					break
+				}
+				if !found {
+					t.Fatalf("Expected logical volume %s not found in LVs report", expectedLV)
+				}
+				if eq, err := expectedLV.Size.IsEqualTo(expectedLV.Size); err != nil || !eq {
+					if err != nil {
+						t.Fatalf("Size inconsistency: %s", err)
+					}
+				}
+			}
+		})
 	}
 }
 
-func SkipTestIfNotRoot(t *testing.T) {
+func FailTestIfNotRoot(t *testing.T) {
 	if os.Geteuid() != 0 {
-		t.Skip("Skipping test because it requires root privileges to setup its environment.")
+		t.Fatalf("Failing test because it requires root privileges to setup its environment.")
 	}
 }
