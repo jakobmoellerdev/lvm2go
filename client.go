@@ -22,6 +22,7 @@ func NewClient() Client {
 
 type MetaClient interface {
 	Version(ctx context.Context, opts ...VersionOption) (Version, error)
+	RawConfig(ctx context.Context, opts ...ConfigOption) (RawConfig, error)
 }
 
 type VolumeGroupClient interface {

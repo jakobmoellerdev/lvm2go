@@ -19,10 +19,27 @@ func Test_Version(t *testing.T) {
 		t.Fatalf("failed to get version: %v", err)
 	}
 
-	t.Logf("LVM Version: %s", ver.LVMVersion)
-	t.Logf("LVM Build Date: %s", ver.LVMBuild)
-	t.Logf("Library Version: %s", ver.LibraryVersion)
-	t.Logf("Library Build Date: %s", ver.LibraryBuild)
-	t.Logf("Driver Version: %s", ver.DriverVersion)
-	t.Logf("Configuration: %s", ver.ConfigurationFlags)
+	if ver.LVMVersion == "" {
+		t.Fatalf("LVM Version is empty")
+	}
+
+	if ver.LVMBuild.IsZero() {
+		t.Fatalf("LVM Build Date is zero")
+	}
+
+	if ver.LibraryVersion == "" {
+		t.Fatalf("Library Version is empty")
+	}
+
+	if ver.LibraryBuild.IsZero() {
+		t.Fatalf("Library Build Date is zero")
+	}
+
+	if ver.DriverVersion == "" {
+		t.Fatalf("Driver Version is empty")
+	}
+
+	if len(ver.ConfigurationFlags) == 0 {
+		t.Fatalf("Configuration Flags is empty")
+	}
 }

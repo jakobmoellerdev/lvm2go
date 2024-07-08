@@ -94,7 +94,7 @@ func (c *client) Version(ctx context.Context, opts ...VersionOption) (Version, e
 			return fmt.Errorf("invalid version line: %q", scanner.Text())
 		}
 		version.ConfigurationFlags = configurationFields[2:]
-		return nil
+		return scanner.Err()
 	})
 
 	if err := c.RunLVMRaw(ctx, versionProcessor, append([]string{"version"}, args.GetRaw()...)...); err != nil {
