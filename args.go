@@ -23,7 +23,9 @@ type ArgsType string
 
 const (
 	ArgsTypeLVs      ArgsType = "lvs"
+	ArgsTypePVs      ArgsType = "pvs"
 	ArgsTypeVGs      ArgsType = "vgs"
+	ArgsTypeGeneric  ArgsType = "generic"
 	ArgsTypeLVCreate ArgsType = "lvcreate"
 	ArgsTypeVGCreate ArgsType = "vgcreate"
 	ArgsTypeVGRemove ArgsType = "vgremove"

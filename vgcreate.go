@@ -35,7 +35,7 @@ func (c *client) VGCreate(ctx context.Context, opts ...VGCreateOption) error {
 		return err
 	}
 
-	return RunLVM(ctx, append([]string{"vgcreate"}, args.GetRaw()...)...)
+	return c.RunLVM(ctx, append([]string{"vgcreate"}, args.GetRaw()...)...)
 }
 
 func (list VGCreateOptionList) AsArgs() (Arguments, error) {

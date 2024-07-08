@@ -56,6 +56,25 @@ type Size struct {
 	Unit
 }
 
+var conversionTable = map[Unit]float64{
+	UnitBytes: 0,
+	UnitKiB:   1,
+	UnitMiB:   2,
+	UnitGiB:   3,
+	UnitTiB:   4,
+	UnitPiB:   5,
+	UnitEiB:   6,
+}
+
+func convert(val float64, a, b Unit) float64 {
+	if conversionTable[a] < conversionTable[b] {
+		val /= math.Pow(conversionFactor, conversionTable[b]-conversionTable[a])
+	} else {
+		val *= math.Pow(conversionFactor, conversionTable[a]-conversionTable[b])
+	}
+	return val
+}
+
 func (opt Size) IsEqualTo(other Size) (bool, error) {
 	optBytes, err := opt.ToUnit(UnitBytes)
 	if err != nil {
@@ -68,16 +87,6 @@ func (opt Size) IsEqualTo(other Size) (bool, error) {
 	}
 
 	return optBytes == otherBytes, nil
-}
-
-var conversionTable = map[Unit]float64{
-	UnitBytes: 0,
-	UnitKiB:   1,
-	UnitMiB:   2,
-	UnitGiB:   3,
-	UnitTiB:   4,
-	UnitPiB:   5,
-	UnitEiB:   6,
 }
 
 func (opt Size) ToUnit(unit Unit) (Size, error) {
@@ -93,15 +102,23 @@ func (opt Size) ToUnit(unit Unit) (Size, error) {
 		return Size{}, ErrCannotConvertSector
 	}
 
-	newVal := opt.Val
+	return NewSize(convert(opt.Val, opt.Unit, unit), unit), nil
+}
 
-	if conversionTable[opt.Unit] < conversionTable[unit] {
-		newVal /= math.Pow(conversionFactor, conversionTable[unit]-conversionTable[opt.Unit])
-	} else {
-		newVal *= math.Pow(conversionFactor, conversionTable[opt.Unit]-conversionTable[unit])
+func (opt Size) ToUnitIfValid(unit Unit) Size {
+	if opt.Unit == unit {
+		return opt
 	}
 
-	return NewSize(newVal, unit), nil
+	if !IsValidUnit(unit) || opt.Unit == UnitUnknown {
+		return opt
+	}
+
+	if opt.Unit == UnitSector || unit == UnitSector {
+		return opt
+	}
+
+	return NewSize(convert(opt.Val, opt.Unit, unit), unit)
 }
 
 func (opt Size) String() string {

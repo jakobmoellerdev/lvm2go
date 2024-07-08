@@ -2,12 +2,17 @@ package lvm2go
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
+	"os"
 	"os/exec"
+	"sync"
 	"time"
 )
 
 const (
-	nsenter = "/usr/bin/nsenter"
+	nsenter               = "/usr/bin/nsenter"
+	DefaultVolumeGroupEnv = "LVM_VG_NAME"
 )
 
 var waitDelayKey = struct{}{}
@@ -38,5 +43,67 @@ func CommandContext(ctx context.Context, cmd string, args ...string) *exec.Cmd {
 	}
 	c.WaitDelay = GetProcessCancelWaitDelay(ctx)
 
+	if DefaultVolumeGroup(ctx) != "" {
+		c.Env = append(c.Env, fmt.Sprintf("%s=%s", DefaultVolumeGroupEnv, DefaultVolumeGroup(ctx)))
+	}
+
 	return CommandWithCustomEnvironment(ctx, c)
+}
+
+var defaultVolumeGroupKey = struct{}{}
+
+func WithDefaultVolumeGroup(ctx context.Context, vg string) context.Context {
+	return context.WithValue(ctx, defaultVolumeGroupKey, vg)
+}
+
+func DefaultVolumeGroup(ctx context.Context) string {
+	if vg, ok := ctx.Value(defaultVolumeGroupKey).(string); ok {
+		return vg
+	}
+	return ""
+}
+
+var (
+	isContainerized     bool
+	detectContainerized sync.Once
+)
+
+func IsContainerized(ctx context.Context) bool {
+	detectContainerized.Do(func() {
+		if _, err := os.Stat("/.dockerenv"); err == nil {
+			isContainerized = true
+		} else if _, err := os.Stat("/.containerenv"); err == nil {
+			isContainerized = true
+		}
+		if isContainerized {
+			slog.DebugContext(ctx, "lvm2go is running in docker environment")
+		}
+	})
+	return isContainerized
+}
+
+var envContextKey = struct{}{}
+
+func WithCustomEnvironment(ctx context.Context, env map[string]string) context.Context {
+	return context.WithValue(ctx, envContextKey, env)
+}
+
+func GetCustomEnvironment(ctx context.Context) map[string]string {
+	if env, ok := ctx.Value(envContextKey).(map[string]string); ok {
+		return env
+	}
+	return nil
+}
+
+func CommandWithCustomEnvironment(ctx context.Context, cmd *exec.Cmd) *exec.Cmd {
+	cmd.Env = os.Environ()
+	if UseStandardLocale() {
+		cmd.Env = append(cmd.Env, "LC_ALL=C")
+	}
+	if env := GetCustomEnvironment(ctx); env != nil {
+		for k, v := range env {
+			cmd.Env = append(cmd.Env, k+"="+v)
+		}
+	}
+	return cmd
 }

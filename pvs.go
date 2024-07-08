@@ -5,7 +5,7 @@ import (
 )
 
 type (
-	LVsOptions struct {
+	PVsOptions struct {
 		VolumeGroupName
 		Tags
 		Select
@@ -13,33 +13,33 @@ type (
 		ColumnOptions
 		CommonOptions
 	}
-	LVsOption interface {
-		ApplyToLVsOptions(opts *LVsOptions)
+	PVsOption interface {
+		ApplyToPVsOptions(opts *PVsOptions)
 	}
-	LVsOptionsList []LVsOption
+	PVsOptionsList []PVsOption
 )
 
 var (
-	_ ArgumentGenerator = LVsOptionsList{}
-	_ Argument          = (*LVsOptions)(nil)
+	_ ArgumentGenerator = PVsOptionsList{}
+	_ Argument          = (*PVsOptions)(nil)
 )
 
-// LVs returns a list of logical volumes that match the given options.
+// PVs returns a list of logical volumes that match the given options.
 // If no logical volumes are found, nil is returned.
 // It is really just a wrapper around the `lvs --reportformat json` command.
-func (c *client) LVs(ctx context.Context, opts ...LVsOption) ([]LogicalVolume, error) {
+func (c *client) PVs(ctx context.Context, opts ...PVsOption) ([]PhysicalVolume, error) {
 	type lvReport struct {
 		Report []struct {
-			LV []LogicalVolume `json:"lv"`
+			PV []PhysicalVolume `json:"pv"`
 		} `json:"report"`
 	}
 
 	var res = new(lvReport)
 
 	args := []string{
-		"lvs", "--reportformat", "json",
+		"pvs", "--reportformat", "json",
 	}
-	argsFromOpts, err := LVsOptionsList(opts).AsArgs()
+	argsFromOpts, err := PVsOptionsList(opts).AsArgs()
 	if err != nil {
 		return nil, err
 	}
@@ -58,16 +58,16 @@ func (c *client) LVs(ctx context.Context, opts ...LVsOption) ([]LogicalVolume, e
 		return nil, nil
 	}
 
-	lvs := res.Report[0].LV
+	pvs := res.Report[0].PV
 
-	if len(lvs) == 0 {
+	if len(pvs) == 0 {
 		return nil, nil
 	}
 
-	return lvs, nil
+	return pvs, nil
 }
 
-func (opts *LVsOptions) ApplyToArgs(args Arguments) error {
+func (opts *PVsOptions) ApplyToArgs(args Arguments) error {
 	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
 		return err
 	}
@@ -83,11 +83,11 @@ func (opts *LVsOptions) ApplyToArgs(args Arguments) error {
 	return nil
 }
 
-func (list LVsOptionsList) AsArgs() (Arguments, error) {
-	args := NewArgs(ArgsTypeLVs)
-	options := LVsOptions{}
+func (list PVsOptionsList) AsArgs() (Arguments, error) {
+	args := NewArgs(ArgsTypePVs)
+	options := PVsOptions{}
 	for _, opt := range list {
-		opt.ApplyToLVsOptions(&options)
+		opt.ApplyToPVsOptions(&options)
 	}
 	if err := options.ApplyToArgs(args); err != nil {
 		return nil, err
@@ -95,6 +95,6 @@ func (list LVsOptionsList) AsArgs() (Arguments, error) {
 	return args, nil
 }
 
-func (opts *LVsOptions) ApplyToLVsOptions(new *LVsOptions) {
+func (opts *PVsOptions) ApplyToPVsOptions(new *PVsOptions) {
 	*new = *opts
 }

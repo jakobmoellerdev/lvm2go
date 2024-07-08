@@ -31,7 +31,7 @@ func (c *client) LVRemove(ctx context.Context, opts ...LVRemoveOption) error {
 		return err
 	}
 
-	return RunLVM(ctx, append([]string{"lvremove"}, args.GetRaw()...)...)
+	return c.RunLVM(ctx, append([]string{"lvremove"}, args.GetRaw()...)...)
 }
 
 func (opts *LVRemoveOptions) ApplyToArgs(args Arguments) error {

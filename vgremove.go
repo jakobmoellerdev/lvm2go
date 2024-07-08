@@ -21,13 +21,18 @@ type (
 	VGRemoveOptionsList []VGRemoveOption
 )
 
+var (
+	_ ArgumentGenerator = VGRemoveOptionsList{}
+	_ Argument          = (*VGRemoveOptions)(nil)
+)
+
 func (c *client) VGRemove(ctx context.Context, opts ...VGRemoveOption) error {
 	args, err := VGRemoveOptionsList(opts).AsArgs()
 	if err != nil {
 		return err
 	}
 
-	return RunLVM(ctx, append([]string{"vgremove"}, args.GetRaw()...)...)
+	return c.RunLVM(ctx, append([]string{"vgremove"}, args.GetRaw()...)...)
 }
 
 func (opts *VGRemoveOptions) ApplyToArgs(args Arguments) error {

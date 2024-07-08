@@ -26,6 +26,12 @@ var sharedTestClient Client
 var sharedTestClientOnce sync.Once
 var sharedTestClientKey = struct{}{}
 
+func FailTestIfNotRoot(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Fatalf("Failing test because it requires root privileges to setup its environment.")
+	}
+}
+
 func SetTestClient(ctx context.Context, client Client) context.Context {
 	return context.WithValue(ctx, sharedTestClientKey, client)
 }
@@ -194,20 +200,50 @@ func MakeTestVolumeGroup(t *testing.T, devices ...string) TestVolumeGroup {
 }
 
 type TestLogicalVolume struct {
-	Name LogicalVolumeName
-	Size
+	Options LVCreateOptionList
 }
 
-func (vg TestVolumeGroup) MakeTestLogicalVolume(size Size) TestLogicalVolume {
+func (lv TestLogicalVolume) LogicalVolumeName() LogicalVolumeName {
+	for _, opt := range lv.Options {
+		switch opt.(type) {
+		case LogicalVolumeName:
+			return opt.(LogicalVolumeName)
+		}
+	}
+	return ""
+}
+
+func (lv TestLogicalVolume) Size() Size {
+	for _, opt := range lv.Options {
+		switch opt.(type) {
+		case Size:
+			return opt.(Size)
+		}
+	}
+	return Size{}
+}
+
+func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) TestLogicalVolume {
 	ctx := context.Background()
 
-	size, err := size.ToUnit(UnitBytes)
-	if err != nil {
+	var logicalVolumeName LogicalVolumeName
+	if lvName := template.LogicalVolumeName(); lvName == "" {
+		logicalVolumeName = LogicalVolumeName(NewNonDeterministicTestID(vg.t))
+		template.Options = append(template.Options, logicalVolumeName)
+	} else {
+		logicalVolumeName = lvName
+	}
+
+	size := template.Size()
+	if size.Val == 0 {
+		size = MustParseSize("1G")
+	}
+	var err error
+	if size, err = size.ToUnit(UnitBytes); err != nil {
 		vg.t.Fatal(err)
 	}
 	size.Val = RoundUp(size.Val, TestExtentBytes)
 
-	logicalVolumeName := LogicalVolumeName(NewNonDeterministicTestID(vg.t))
 	c := GetTestClient(ctx)
 	if err := c.LVCreate(ctx, vg.Name, logicalVolumeName, size); err != nil {
 		vg.t.Fatal(err)
@@ -218,7 +254,59 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(size Size) TestLogicalVolume {
 		}
 	})
 	return TestLogicalVolume{
-		Name: logicalVolumeName,
-		Size: size,
+		Options: template.Options,
+	}
+}
+
+type test struct {
+	loopDevices []Size
+	lvs         []TestLogicalVolume
+}
+
+type testInfra struct {
+	loopDevices TestLoopbackDevices
+	volumeGroup TestVolumeGroup
+	lvs         []TestLogicalVolume
+}
+
+func (test test) String() string {
+	totalLoopSize := 0.0
+	totalLVSize := 0.0
+	for _, size := range test.loopDevices {
+		sizeBytes := size.ToUnitIfValid(UnitBytes)
+		totalLoopSize += sizeBytes.Val
+	}
+	for _, lv := range test.lvs {
+		sizeBytes := lv.Size().ToUnitIfValid(UnitBytes)
+		totalLVSize += sizeBytes.Val
+	}
+	loopSize := MustParseSize(fmt.Sprintf("%fB", totalLoopSize)).ToUnitIfValid(UnitGiB)
+	lvSize := MustParseSize(fmt.Sprintf("%fB", totalLVSize)).ToUnitIfValid(UnitGiB)
+	return fmt.Sprintf("loopCount=%v,loopSize=%v,lvCount=%v,lvSize=%v",
+		len(test.loopDevices), loopSize, len(test.lvs), lvSize)
+}
+
+func (test test) SetupDevicesAndVolumeGroup(t *testing.T) testInfra {
+	t.Helper()
+	var loopDevices TestLoopbackDevices
+	for _, size := range test.loopDevices {
+		loopDevices = append(loopDevices, MakeTestLoopbackDevice(t, size))
+	}
+	if loopDevices == nil {
+		t.Fatal("No loop devices defined for infra")
+	}
+	devices := loopDevices.Devices()
+
+	volumeGroup := MakeTestVolumeGroup(t, devices...)
+
+	var lvs []TestLogicalVolume
+	for _, lv := range test.lvs {
+		lvs = append(lvs, volumeGroup.MakeTestLogicalVolume(lv))
+	}
+
+	return testInfra{
+		loopDevices: loopDevices,
+		volumeGroup: volumeGroup,
+		lvs:         lvs,
 	}
 }

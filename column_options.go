@@ -5,12 +5,6 @@ import (
 )
 
 var (
-	DefaultVGsColumnOptions = ColumnOptions{
-		"vg_uuid",
-		"vg_name",
-		"vg_size",
-		"vg_free",
-	}
 	DefaultLVsColumnOptions = ColumnOptions{
 		"lv_uuid",
 		"lv_name",
@@ -28,6 +22,26 @@ var (
 		"data_percent",
 		"metadata_percent",
 		"pool_lv",
+	}
+	DefaultVGsColumnOptions = ColumnOptions{
+		"vg_uuid",
+		"vg_name",
+		"vg_size",
+		"vg_free",
+		"pv_count",
+		"lv_count",
+		"snap_count",
+		"vg_attr",
+	}
+	DefaultPVsColumnOptions = ColumnOptions{
+		"pv_uuid",
+		"pv_name",
+		"pv_fmt",
+		"pv_size",
+		"pv_free",
+		"pv_attr",
+		"pv_tags",
+		"vg_name",
 	}
 )
 
@@ -51,6 +65,8 @@ func (opt ColumnOptions) ApplyToArgs(args Arguments) error {
 			optionsString = strings.Join(DefaultVGsColumnOptions, ",")
 		case ArgsTypeLVs:
 			optionsString = strings.Join(DefaultLVsColumnOptions, ",")
+		case ArgsTypePVs:
+			optionsString = strings.Join(DefaultPVsColumnOptions, ",")
 		}
 	}
 	args.AppendAll([]string{"--options", optionsString})

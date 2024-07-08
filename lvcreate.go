@@ -35,7 +35,7 @@ func (c *client) LVCreate(ctx context.Context, opts ...LVCreateOption) error {
 		return err
 	}
 
-	return RunLVM(ctx, append([]string{"lvcreate"}, args.GetRaw()...)...)
+	return c.RunLVM(ctx, append([]string{"lvcreate"}, args.GetRaw()...)...)
 }
 
 func (list LVCreateOptionList) AsArgs() (Arguments, error) {
@@ -63,36 +63,19 @@ func (opts *LVCreateOptions) ApplyToArgs(args Arguments) error {
 		return fmt.Errorf("size is required for creation of a logical volume")
 	}
 
-	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.LogicalVolumeName.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.Size.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.AllocationPolicy.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.Activate.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.Zero.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.Tags.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
-		return err
+	for _, arg := range []Argument{
+		opts.VolumeGroupName,
+		opts.LogicalVolumeName,
+		opts.Size,
+		opts.AllocationPolicy,
+		opts.Activate,
+		opts.Zero,
+		opts.Tags,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
 	}
 
 	return nil
