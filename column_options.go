@@ -36,12 +36,22 @@ var (
 	DefaultPVsColumnOptions = ColumnOptions{
 		"pv_uuid",
 		"pv_name",
-		"pv_fmt",
+		"dev_size",
+		"pv_major",
+		"pv_minor",
+		"pv_mda_free",
+		"pv_mda_size",
+		"pe_start",
 		"pv_size",
 		"pv_free",
+		"pv_used",
+		"pv_mda_count",
+		"pv_mda_used_count",
 		"pv_attr",
 		"pv_tags",
 		"vg_name",
+		"pv_device_id",
+		"pv_device_id_type",
 	}
 )
 

@@ -3,7 +3,24 @@ package lvm2go
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 )
+
+func unmarshalAndConvertToStrings(raw map[string]json.RawMessage, key string, fieldPtr *[]string) error {
+	if raw[key] == nil || len(raw[key]) == 0 {
+		*fieldPtr = nil
+		return nil
+	}
+
+	var str string
+	if err := json.Unmarshal(raw[key], &str); err != nil {
+		return err
+	}
+
+	*fieldPtr = strings.Split(str, ",")
+
+	return nil
+}
 
 func unmarshalAndConvertToSize(raw map[string]json.RawMessage, key string, fieldPtr *Size) error {
 	if raw[key] == nil || len(raw[key]) == 0 {

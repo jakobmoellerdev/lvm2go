@@ -1,13 +1,12 @@
-// Package lvm2go implements a Go API for the LVM2 command line tools.
+// Package lvm2go implements a Go API for the lvm2 command line tools.
 //
 // The API is designed to be simple and easy to use, while still providing
-// access to the full functionality of the LVM2 command line tools. (as much as possible)
+// access to the full functionality of the LVM2 command line tools.
 //
 // Compared to a simple command line wrapper, lvm2go provides a more structured
-// way to interact with the LVM2 tools, and allows for more complex interactions
-// with the LVM2 tools while safeguarding typing and allowing for fine-grained control
-// over the input of various usually problematic parameters, such as sizes (and their conversion),
-// validation of input parameters, and caching of data.
+// way to interact with lvm2, and allows for more complex interactions while safeguarding typing
+// and allowing for fine-grained control over the input of various usually problematic parameters,
+// such as sizes (and their conversion), validation of input parameters, and caching of data.
 //
 // A simple usage example:
 //
@@ -25,7 +24,11 @@
 //			}
 //
 //			// Create a new Logical Volume in the first group
-//			if err = c.LVCreate(LogicalVolumeName("mylv"), VolumeGroupName(vgs[0].Name), MustParseSize("1G")); err != nil {
+//			if err = c.LVCreate(
+//			    LogicalVolumeName("mylv"),
+//		    	VolumeGroupName(vgs[0].Name),
+//	    		MustParseSize("1G"),
+//			); err != nil {
 //				panic(err)
 //			}
 //	    }
