@@ -15,6 +15,7 @@ type (
 		AllocationPolicy
 		Activate
 		Zero
+		ChunkSize
 
 		CommonOptions
 	}

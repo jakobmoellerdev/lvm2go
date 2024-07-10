@@ -100,7 +100,7 @@ func (opt FQLogicalVolumeName) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 }
 
 func (opt FQLogicalVolumeName) ApplyToArgs(args Arguments) error {
-	args.AppendAll([]string{string(opt)})
+	args.AddOrReplaceAll([]string{string(opt)})
 	return nil
 }
 
@@ -123,6 +123,6 @@ func (opt LogicalVolumeName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 }
 
 func (opt LogicalVolumeName) ApplyToArgs(args Arguments) error {
-	args.AppendAll([]string{"--name", string(opt)})
+	args.AddOrReplaceAll([]string{"--name", string(opt)})
 	return nil
 }

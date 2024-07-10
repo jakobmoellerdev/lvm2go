@@ -29,7 +29,7 @@ func (opt Devices) ApplyToArgs(args Arguments) error {
 	if len(opt) == 0 {
 		return nil
 	}
-	args.AppendAll([]string{"--devices", strings.Join(opt, ",")})
+	args.AddOrReplaceAll([]string{"--devices", strings.Join(opt, ",")})
 	return nil
 }
 
@@ -58,6 +58,6 @@ func (opt DevicesFile) ApplyToArgs(args Arguments) error {
 	if opt == "" {
 		return nil
 	}
-	args.AppendAll([]string{"--devicesfile", string(opt)})
+	args.AddOrReplaceAll([]string{"--devicesfile", string(opt)})
 	return nil
 }

@@ -69,6 +69,6 @@ func (opt ColumnOptions) ApplyToArgs(args Arguments) error {
 			optionsString = strings.Join(DefaultPVsColumnOptions, ",")
 		}
 	}
-	args.AppendAll([]string{"--options", optionsString})
+	args.AddOrReplaceAll([]string{"--options", optionsString})
 	return nil
 }

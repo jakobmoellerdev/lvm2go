@@ -63,6 +63,6 @@ func (opt VolumeGroupName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 }
 
 func (opt VolumeGroupName) ApplyToArgs(args Arguments) error {
-	args.AppendAll([]string{string(opt)})
+	args.AddOrReplace(string(opt))
 	return nil
 }

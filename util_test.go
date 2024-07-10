@@ -273,15 +273,15 @@ func (test test) String() string {
 	totalLoopSize := 0.0
 	totalLVSize := 0.0
 	for _, size := range test.loopDevices {
-		sizeBytes := size.ToUnitIfValid(UnitBytes)
+		sizeBytes := size.unsafeToUnit(UnitBytes)
 		totalLoopSize += sizeBytes.Val
 	}
 	for _, lv := range test.lvs {
-		sizeBytes := lv.Size().ToUnitIfValid(UnitBytes)
+		sizeBytes := lv.Size().unsafeToUnit(UnitBytes)
 		totalLVSize += sizeBytes.Val
 	}
-	loopSize := MustParseSize(fmt.Sprintf("%fB", totalLoopSize)).ToUnitIfValid(UnitGiB)
-	lvSize := MustParseSize(fmt.Sprintf("%fB", totalLVSize)).ToUnitIfValid(UnitGiB)
+	loopSize := MustParseSize(fmt.Sprintf("%fB", totalLoopSize)).unsafeToUnit(UnitGiB)
+	lvSize := MustParseSize(fmt.Sprintf("%fB", totalLVSize)).unsafeToUnit(UnitGiB)
 	return fmt.Sprintf("loopCount=%v,loopSize=%v,lvCount=%v,lvSize=%v",
 		len(test.loopDevices), loopSize, len(test.lvs), lvSize)
 }

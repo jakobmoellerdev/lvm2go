@@ -16,6 +16,6 @@ func (opt Activate) ApplyToArgs(args Arguments) error {
 	if opt == "" {
 		return nil
 	}
-	args.AppendAll([]string{"--activate", string(opt)})
+	args.AddOrReplaceAll([]string{"--activate", string(opt)})
 	return nil
 }

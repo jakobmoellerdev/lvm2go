@@ -2,7 +2,6 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
 	"fmt"
 )
 
@@ -31,10 +30,31 @@ func (c *client) PVResize(ctx context.Context, opts ...PVResizeOption) error {
 	return c.RunLVM(ctx, append([]string{"pvresize"}, args.GetRaw()...)...)
 }
 
-func (L PVResizeOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+func (list PVResizeOptionsList) AsArgs() (Arguments, error) {
+	args := NewArgs(ArgsTypeGeneric)
+	options := PVResizeOptions{}
+	for _, opt := range list {
+		opt.ApplyToPVResizeOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
 func (opts *PVResizeOptions) ApplyToArgs(args Arguments) error {
-	return fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	if opts.PhysicalVolumeName == "" {
+		return fmt.Errorf("PhysicalVolumeName is required for resizing a physical volume")
+	}
+
+	for _, arg := range []Argument{
+		opts.PhysicalVolumeName,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

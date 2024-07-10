@@ -11,6 +11,6 @@ func (opt PhysicalExtentSize) ApplyToArgs(args Arguments) error {
 		return err
 	}
 
-	args.AppendAll([]string{"--physicalextentsize", Size(opt).String()})
+	args.AddOrReplaceAll([]string{"--physicalextentsize", Size(opt).String()})
 	return nil
 }

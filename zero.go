@@ -9,6 +9,6 @@ func (opt Zero) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 }
 
 func (opt Zero) ApplyToArgs(args Arguments) error {
-	args.AppendAll([]string{"--zero", zeroMapping[bool(opt)]})
+	args.AddOrReplaceAll([]string{"--zero", zeroMapping[bool(opt)]})
 	return nil
 }

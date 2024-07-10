@@ -22,6 +22,6 @@ func (c ConfigType) ApplyToArgs(arguments Arguments) error {
 	if len(c) == 0 {
 		return nil
 	}
-	arguments.AppendAll(c.AsArgs())
+	arguments.AddOrReplaceAll(c.AsArgs())
 	return nil
 }

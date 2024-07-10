@@ -19,6 +19,6 @@ func (opt AllocationPolicy) ApplyToArgs(args Arguments) error {
 	if opt == "" {
 		return nil
 	}
-	args.AppendAll([]string{"--alloc", string(opt)})
+	args.AddOrReplaceAll([]string{"--alloc", string(opt)})
 	return nil
 }

@@ -32,7 +32,7 @@ type PhysicalVolumeName string
 var _ Argument = PhysicalVolumeName("")
 
 func (opt PhysicalVolumeName) ApplyToArgs(args Arguments) error {
-	args.AppendAll([]string{string(opt)})
+	args.AddOrReplaceAll([]string{string(opt)})
 	return nil
 }
 
@@ -57,7 +57,7 @@ func (opt PhysicalVolumeNames) ApplyToArgs(args Arguments) error {
 	for i, v := range opt {
 		raw[i] = string(v)
 	}
-	args.AppendAll(raw)
+	args.AddOrReplaceAll(raw)
 	return nil
 }
 

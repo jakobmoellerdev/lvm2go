@@ -11,6 +11,9 @@ type (
 		LogicalVolumeName
 		VolumeGroupName
 
+		Size
+		Extents
+
 		CommonOptions
 	}
 	LVExtendOption interface {

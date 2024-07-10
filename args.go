@@ -1,7 +1,13 @@
 package lvm2go
 
+import (
+	"slices"
+	"strings"
+)
+
 type Arguments interface {
-	AppendAll(args []string)
+	AddOrReplaceAll(args []string)
+	AddOrReplace(args ...string)
 	GetType() ArgsType
 	GetRaw() []string
 }
@@ -36,8 +42,18 @@ func NewArgs(typ ArgsType) Arguments {
 	return &args{typ: typ}
 }
 
-func (opt *args) AppendAll(args []string) {
-	opt.raw = append(opt.raw, args...)
+func (opt *args) AddOrReplaceAll(args []string) {
+	for i := range args {
+		if fi := slices.Index(opt.raw, args[i]); fi > -1 {
+			opt.raw[fi] = args[i]
+		} else {
+			opt.raw = append(opt.raw, args[i])
+		}
+	}
+}
+
+func (opt *args) AddOrReplace(args ...string) {
+	opt.AddOrReplaceAll(args)
 }
 
 func (opt *args) GetType() ArgsType {
@@ -46,4 +62,8 @@ func (opt *args) GetType() ArgsType {
 
 func (opt *args) GetRaw() []string {
 	return opt.raw
+}
+
+func (opt *args) String() string {
+	return strings.Join(opt.raw, " ")
 }

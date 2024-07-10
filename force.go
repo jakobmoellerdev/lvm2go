@@ -8,7 +8,7 @@ func (opt Force) ApplyToVGRemoveOptions(opts *VGRemoveOptions) {
 
 func (opt Force) ApplyToArgs(args Arguments) error {
 	if opt {
-		args.AppendAll([]string{"--force"})
+		args.AddOrReplaceAll([]string{"--force"})
 	}
 	return nil
 }

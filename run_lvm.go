@@ -11,12 +11,12 @@ import (
 	"strings"
 )
 
-// RunLVM calls lvmBinaryPath sub-commands and prints the output to the log.
+// RunLVM calls lvm2 sub-commands and prints the output to the log.
 func (c *client) RunLVM(ctx context.Context, args ...string) error {
 	return c.RunLVMInto(ctx, nil, args...)
 }
 
-// RunLVMInto calls lvmBinaryPath sub-commands and decodes the output via JSON into the provided struct pointer.
+// RunLVMInto calls lvm2 sub-commands and decodes the output via JSON into the provided struct pointer.
 // if the struct pointer is nil, the output will be printed to the log instead.
 func (c *client) RunLVMInto(ctx context.Context, into any, args ...string) error {
 	output, err := StreamedCommand(ctx, CommandContext(ctx, GetLVMPath(), args...))

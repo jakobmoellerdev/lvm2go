@@ -36,13 +36,13 @@ func (opt Tags) ApplyToArgs(args Arguments) error {
 		for _, tag := range opt {
 			tagArgs = append(tagArgs, "--addtag", SymboledTag(tag))
 		}
-		args.AppendAll(tagArgs)
+		args.AddOrReplaceAll(tagArgs)
 	default:
 		tagArgs := make([]string, 0, len(opt))
 		for _, tag := range opt {
 			tagArgs = append(tagArgs, SymboledTag(tag))
 		}
-		args.AppendAll(tagArgs)
+		args.AddOrReplaceAll(tagArgs)
 	}
 	return nil
 }
