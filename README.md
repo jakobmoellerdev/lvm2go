@@ -28,9 +28,9 @@ A simple usage example:
 
 		// Create a new Logical Volume in the first group
 		if err = c.LVCreate(
-		    LogicalVolumeName("mylv"),
-	    	VolumeGroupName(vgs[0].Name),
-    		MustParseSize("1G"),
+                    LogicalVolumeName("mylv"),
+                    VolumeGroupName(vgs[0].Name),
+                    MustParseSize("1G"),
 		); err != nil {
 			panic(err)
 		}
