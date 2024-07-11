@@ -9,6 +9,10 @@ import (
 type (
 	VGChangeOptions struct {
 		VolumeGroupName
+
+		Tags
+		DelTags
+
 		CommonOptions
 	}
 	VGChangeOption interface {

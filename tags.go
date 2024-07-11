@@ -56,3 +56,22 @@ func SymboledTag(tag string) string {
 	}
 	return tag
 }
+
+type DelTags Tags
+
+func (opt DelTags) ApplyToArgs(args Arguments) error {
+	tagArgs := make([]string, 0, len(opt)*2)
+	for _, tag := range opt {
+		tagArgs = append(tagArgs, "--deltag", SymboledTag(tag))
+	}
+	args.AddOrReplaceAll(tagArgs)
+	return nil
+}
+
+func (opt DelTags) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.DelTags = opt
+}
+
+func (opt DelTags) ApplyToVGChangeOptions(opts *VGChangeOptions) {
+	opts.DelTags = opt
+}

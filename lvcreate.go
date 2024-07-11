@@ -12,10 +12,18 @@ type (
 		Tags
 
 		Size
+		VirtualSize
+
 		AllocationPolicy
 		Activate
-		Zero
+		*Zero
 		ChunkSize
+		Type
+		Thin
+
+		Stripes
+		Mirrors
+		StripeSize
 
 		CommonOptions
 	}

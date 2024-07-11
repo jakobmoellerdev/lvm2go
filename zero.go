@@ -4,11 +4,14 @@ type Zero bool
 
 var zeroMapping = map[bool]string{true: "y", false: "n"}
 
-func (opt Zero) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+func (opt *Zero) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.Zero = opt
 }
 
-func (opt Zero) ApplyToArgs(args Arguments) error {
-	args.AddOrReplaceAll([]string{"--zero", zeroMapping[bool(opt)]})
+func (opt *Zero) ApplyToArgs(args Arguments) error {
+	if opt == nil {
+		return nil
+	}
+	args.AddOrReplaceAll([]string{"--zero", zeroMapping[bool(*opt)]})
 	return nil
 }

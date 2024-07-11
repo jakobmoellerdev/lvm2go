@@ -6,7 +6,8 @@ import (
 	"strings"
 )
 
-var VolumeGroupNameRequiredError = errors.New("VolumeGroupName is required for a fully qualified logical volume")
+var ErrVolumeGroupNameRequired = errors.New("VolumeGroupName is required for a fully qualified logical volume")
+var ErrLogicalVolumeNameRequired = errors.New("LogicalVolumeName is required for a fully qualified logical volume")
 
 type LogicalVolume struct {
 	UUID     string            `json:"lv_uuid"`
@@ -106,7 +107,10 @@ func (opt FQLogicalVolumeName) ApplyToArgs(args Arguments) error {
 
 func NewFQLogicalVolumeName(vg VolumeGroupName, lv LogicalVolumeName) (FQLogicalVolumeName, error) {
 	if vg == "" {
-		return "", VolumeGroupNameRequiredError
+		return "", ErrVolumeGroupNameRequired
+	}
+	if lv == "" {
+		return "", ErrLogicalVolumeNameRequired
 	}
 	return FQLogicalVolumeName(string(vg) + "/" + string(lv)), nil
 }
