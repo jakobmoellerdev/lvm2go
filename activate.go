@@ -13,6 +13,9 @@ func (opt Activate) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 }
 
 func (opt Activate) ApplyToArgs(args Arguments) error {
+	if opt == "" {
+		return nil
+	}
 	args.AddOrReplaceAll([]string{"--activate", string(opt)})
 	return nil
 }

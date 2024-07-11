@@ -7,7 +7,7 @@ func (opt *ErrorWhenFull) ApplyToArgs(args Arguments) error {
 		return nil
 
 	}
-	args.AddOrReplaceAll([]string{"--errorwhenfull", map[bool]string{true: "y", false: "n"}[bool(opt)]})
+	args.AddOrReplaceAll([]string{"--errorwhenfull", map[bool]string{true: "y", false: "n"}[bool(*opt)]})
 	return nil
 }
 

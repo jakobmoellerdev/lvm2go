@@ -7,7 +7,7 @@ func (opt *Deduplication) ApplyToArgs(args Arguments) error {
 		return nil
 	}
 
-	args.AddOrReplaceAll([]string{"--deduplication", map[bool]string{true: "y", false: "n"}[bool(opt)]})
+	args.AddOrReplaceAll([]string{"--deduplication", map[bool]string{true: "y", false: "n"}[bool(*opt)]})
 	return nil
 }
 
