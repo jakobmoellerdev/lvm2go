@@ -96,7 +96,6 @@ func GetCustomEnvironment(ctx context.Context) map[string]string {
 }
 
 func CommandWithCustomEnvironment(ctx context.Context, cmd *exec.Cmd) *exec.Cmd {
-	cmd.Env = os.Environ()
 	if UseStandardLocale() {
 		cmd.Env = append(cmd.Env, "LC_ALL=C")
 	}
@@ -104,6 +103,8 @@ func CommandWithCustomEnvironment(ctx context.Context, cmd *exec.Cmd) *exec.Cmd 
 		for k, v := range env {
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
+	} else {
+		cmd.Env = os.Environ()
 	}
 	return cmd
 }

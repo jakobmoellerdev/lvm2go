@@ -117,6 +117,10 @@ func (opt Extents) Validate() error {
 	return nil
 }
 
+func (opt Extents) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+	opts.Extents = opt
+}
+
 type PrefixedExtents struct {
 	SizePrefix
 	Extents

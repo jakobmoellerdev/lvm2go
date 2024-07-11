@@ -12,6 +12,7 @@ type (
 		Tags
 
 		Size
+		Extents
 		VirtualSize
 
 		AllocationPolicy
@@ -32,6 +33,12 @@ type (
 	}
 	LVCreateOptionList []LVCreateOption
 )
+
+func (list LVCreateOptionList) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+	for _, opt := range list {
+		opt.ApplyToLVCreateOptions(opts)
+	}
+}
 
 var (
 	_ ArgumentGenerator = LVCreateOptionList{}
@@ -68,14 +75,23 @@ func (opts *LVCreateOptions) ApplyToArgs(args Arguments) error {
 		return fmt.Errorf("VolumeGroupName is required for creation of a logical volume")
 	}
 
-	if opts.Size.Val <= 0 {
-		return fmt.Errorf("size is required for creation of a logical volume")
+	if opts.Extents.Val > 0 && opts.Size.Val > 0 {
+		return fmt.Errorf("size and extents are mutually exclusive")
+	} else if opts.Extents.Val <= 0 && opts.Size.Val <= 0 {
+		return fmt.Errorf("size or extents must be specified")
+	}
+
+	var sizeArgument Argument
+	if opts.Extents.Val > 0 {
+		sizeArgument = opts.Extents
+	} else {
+		sizeArgument = opts.Size
 	}
 
 	for _, arg := range []Argument{
 		opts.VolumeGroupName,
 		opts.LogicalVolumeName,
-		opts.Size,
+		sizeArgument,
 		opts.AllocationPolicy,
 		opts.Activate,
 		opts.Zero,

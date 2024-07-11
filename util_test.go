@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-const TestExtentBytes = 16 * 1024 * 1024 // 16MiB
+const TestExtentBytes = 1024 * 1024 // 1MiB
 
 var TestExtentSize = MustParseSize(fmt.Sprintf("%dB", TestExtentBytes))
 
@@ -223,7 +223,18 @@ func (lv TestLogicalVolume) Size() Size {
 	return Size{}
 }
 
+func (lv TestLogicalVolume) Extents() Extents {
+	for _, opt := range lv.Options {
+		switch opt.(type) {
+		case Extents:
+			return opt.(Extents)
+		}
+	}
+	return Extents{}
+}
+
 func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) TestLogicalVolume {
+	vg.t.Helper()
 	ctx := context.Background()
 
 	var logicalVolumeName LogicalVolumeName
@@ -234,18 +245,27 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) Test
 		logicalVolumeName = lvName
 	}
 
-	size := template.Size()
-	if size.Val == 0 {
-		size = MustParseSize("1G")
+	var sizeOption LVCreateOption
+	if size := template.Size(); size.Val > 0 {
+		var err error
+		if size, err = size.ToUnit(UnitBytes); err != nil {
+			vg.t.Fatal(err)
+		}
+		size.Val = RoundDown(size.Val, TestExtentBytes)
+		sizeOption = size
+	} else if extents := template.Extents(); extents.Val > 0 {
+		sizeOption = extents
+	} else {
+		vg.t.Logf("No size specified for logical volume %s, defaulting to 100M", logicalVolumeName)
+		if size.Val == 0 {
+			size = MustParseSize("100M")
+		}
+		sizeOption = size
 	}
-	var err error
-	if size, err = size.ToUnit(UnitBytes); err != nil {
-		vg.t.Fatal(err)
-	}
-	size.Val = RoundUp(size.Val, TestExtentBytes)
+	template.Options = append(template.Options, sizeOption)
 
 	c := GetTestClient(ctx)
-	if err := c.LVCreate(ctx, vg.Name, logicalVolumeName, size); err != nil {
+	if err := c.LVCreate(ctx, vg.Name, template.Options); err != nil {
 		vg.t.Fatal(err)
 	}
 	vg.t.Cleanup(func() {

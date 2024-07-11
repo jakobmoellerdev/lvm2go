@@ -8,56 +8,61 @@ import (
 
 func TestLVs(t *testing.T) {
 	FailTestIfNotRoot(t)
+	ctx := WithCustomEnvironment(context.Background(), map[string]string{})
 	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	for _, tc := range []test{
 		{
 			loopDevices: []Size{
-				MustParseSize("1G"),
+				MustParseSize("10M"),
 			},
 			lvs: []TestLogicalVolume{
 				{Options: LVCreateOptionList{
-					MustParseSize("100M"),
+					MustParseSize("5M"),
 				}},
 			},
 		},
 		{
 			loopDevices: []Size{
-				MustParseSize("100M"),
+				MustParseSize("5M"),
 			},
 			lvs: []TestLogicalVolume{
 				{Options: LVCreateOptionList{
-					MustParseSize("100M"),
+					MustParseSize("5M"),
 				}},
 			},
 		},
 		{
 			loopDevices: []Size{
-				MustParseSize("1G"),
+				MustParseSize("10M"),
 			},
 			lvs: []TestLogicalVolume{
 				{Options: LVCreateOptionList{
-					MustParseSize("1G"),
+					MustParseSize("5M"),
+				}},
+				{Options: LVCreateOptionList{
+					MustParseSize("5M"),
 				}},
 			},
 		},
 		{
 			loopDevices: []Size{
-				MustParseSize("4G"),
+				{Val: TestExtentSize.Val * 2, Unit: TestExtentSize.Unit},
 			},
 			lvs: []TestLogicalVolume{
 				{Options: LVCreateOptionList{
-					MustParseSize("2G"),
+					MustParseExtents("1"),
 				}},
 				{Options: LVCreateOptionList{
-					MustParseSize("2G"),
+					MustParseExtents("1"),
 				}},
 			},
 		},
 	} {
 		t.Run(tc.String(), func(t *testing.T) {
 			FailTestIfNotRoot(t)
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
 			clnt := GetTestClient(ctx)
 			infra := tc.SetupDevicesAndVolumeGroup(t)
 
