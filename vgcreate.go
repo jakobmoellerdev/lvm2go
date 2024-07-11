@@ -13,8 +13,9 @@ type (
 		PhysicalVolumeNames
 
 		Force
-		Zero
+		*Zero
 		PhysicalExtentSize
+		AllocationPolicy
 
 		CommonOptions
 	}
@@ -55,32 +56,24 @@ func (opts *VGCreateOptions) ApplyToArgs(args Arguments) error {
 		return fmt.Errorf("VolumeGroupName is required for creation of a volume group")
 	}
 
-	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
-		return err
+	if len(opts.PhysicalVolumeNames) == 0 {
+		return fmt.Errorf("PhysicalVolumeNames is required for creation of a volume group")
 	}
 
-	if err := opts.PhysicalVolumeNames.ApplyToArgs(args); err != nil {
-		return err
-	}
+	for _, opt := range []Argument{
+		opts.VolumeGroupName,
+		opts.PhysicalVolumeNames,
+		opts.Tags,
+		opts.Force,
+		opts.Zero,
+		opts.PhysicalExtentSize,
+		opts.AllocationPolicy,
+		opts.CommonOptions,
+	} {
+		if err := opt.ApplyToArgs(args); err != nil {
+			return err
 
-	if err := opts.Tags.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.Force.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.Zero.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.PhysicalExtentSize.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
-		return err
+		}
 	}
 
 	return nil
