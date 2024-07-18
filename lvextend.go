@@ -8,10 +8,11 @@ import (
 
 type (
 	LVExtendOptions struct {
-		LogicalVolumeName
 		VolumeGroupName
+		LogicalVolumeName
 
-		Size
+		PoolMetadataSize
+		PrefixedSize
 		Extents
 
 		CommonOptions
@@ -25,6 +26,7 @@ type (
 var (
 	_ ArgumentGenerator = LVExtendOptionsList{}
 	_ Argument          = (*LVExtendOptions)(nil)
+	_ LVExtendOption    = (*LVExtendOptions)(nil)
 )
 
 func (c *client) LVExtend(ctx context.Context, opts ...LVExtendOption) error {
@@ -36,10 +38,57 @@ func (c *client) LVExtend(ctx context.Context, opts ...LVExtendOption) error {
 	return c.RunLVM(ctx, append([]string{"lvextend"}, args.GetRaw()...)...)
 }
 
-func (L LVExtendOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+func (opts *LVExtendOptions) ApplyToLVExtendOptions(new *LVExtendOptions) {
+	*new = *opts
+}
+
+func (list LVExtendOptionsList) AsArgs() (Arguments, error) {
+	args := NewArgs(ArgsTypeGeneric)
+	options := LVExtendOptions{}
+	for _, opt := range list {
+		opt.ApplyToLVExtendOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
+
 }
 
 func (opts *LVExtendOptions) ApplyToArgs(args Arguments) error {
-	return fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	if opts.VolumeGroupName == "" {
+		return errors.New("VolumeGroupName is required")
+	}
+	if opts.LogicalVolumeName == "" {
+		return errors.New("LogicalVolumeName is required")
+	}
+
+	if opts.Extents.Val > 0 && opts.Size.Val > 0 {
+		return fmt.Errorf("size and extents are mutually exclusive")
+	} else if opts.Extents.Val <= 0 && opts.Size.Val <= 0 {
+		return fmt.Errorf("size or extents must be specified")
+	}
+
+	if opts.PoolMetadataSize.Val == 0 && opts.PrefixedSize.Val == 0 && opts.Extents.Val == 0 {
+		return errors.New("PoolMetadataSize, PrefixedSize or Extents is required")
+	}
+
+	fqLogicalVolumeName, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
+	if err != nil {
+		return err
+	}
+
+	for _, arg := range []Argument{
+		fqLogicalVolumeName,
+		opts.PrefixedSize,
+		opts.PoolMetadataSize,
+		opts.Extents,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

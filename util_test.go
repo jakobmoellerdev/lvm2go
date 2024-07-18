@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"hash"
 	"hash/fnv"
@@ -75,9 +76,9 @@ func NewNonDeterministicTestHash(t *testing.T) hash.Hash32 {
 	return hashedTestName
 }
 
-type TestLoopbackDevices []TestLoopbackDevice
+type LoopbackDevices []LoopbackDevice
 
-func (t TestLoopbackDevices) Devices() Devices {
+func (t LoopbackDevices) Devices() Devices {
 	var devices Devices
 	for _, loop := range t {
 		devices = append(devices, loop.Device)
@@ -85,14 +86,15 @@ func (t TestLoopbackDevices) Devices() Devices {
 	return devices
 }
 
-// TestLoopbackDevice is a struct that holds the loopback Device and the backing file.
+// LoopbackDevice is a struct that holds the loopback Device and the backing file.
 // It is used to create a loopback Device for testing purposes.
-type TestLoopbackDevice struct {
+type LoopbackDevice struct {
 	Device      string
 	BackingFile string
+	Size        Size
 }
 
-func MakeTestLoopbackDevice(t *testing.T, size Size) TestLoopbackDevice {
+func MakeTestLoopbackDevice(t *testing.T, size Size) LoopbackDevice {
 	ctx := context.Background()
 
 	backingFilePath := filepath.Join(t.TempDir(), fmt.Sprintf("%s.img", NewNonDeterministicTestID(t)))
@@ -107,7 +109,7 @@ func MakeTestLoopbackDevice(t *testing.T, size Size) TestLoopbackDevice {
 	logger = logger.With("loop", loop)
 	logger.DebugContext(ctx, "created test loopback device successfully")
 
-	testDevice := TestLoopbackDevice{
+	testDevice := LoopbackDevice{
 		Device:      loop,
 		BackingFile: backingFilePath,
 	}
@@ -279,37 +281,29 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) Test
 }
 
 type test struct {
-	loopDevices []Size
-	lvs         []TestLogicalVolume
+	LoopDevices []Size
+	Volumes     []TestLogicalVolume
 }
 
 type testInfra struct {
-	loopDevices TestLoopbackDevices
+	loopDevices LoopbackDevices
 	volumeGroup TestVolumeGroup
 	lvs         []TestLogicalVolume
 }
 
 func (test test) String() string {
-	totalLoopSize := 0.0
-	totalLVSize := 0.0
-	for _, size := range test.loopDevices {
-		sizeBytes := size.unsafeToUnit(UnitBytes)
-		totalLoopSize += sizeBytes.Val
+	buf := bytes.Buffer{}
+	enc := json.NewEncoder(&buf)
+	if err := enc.Encode(test); err != nil {
+		panic(err)
 	}
-	for _, lv := range test.lvs {
-		sizeBytes := lv.Size().unsafeToUnit(UnitBytes)
-		totalLVSize += sizeBytes.Val
-	}
-	loopSize := MustParseSize(fmt.Sprintf("%fB", totalLoopSize)).unsafeToUnit(UnitGiB)
-	lvSize := MustParseSize(fmt.Sprintf("%fB", totalLVSize)).unsafeToUnit(UnitGiB)
-	return fmt.Sprintf("loopCount=%v,loopSize=%v,lvCount=%v,lvSize=%v",
-		len(test.loopDevices), loopSize, len(test.lvs), lvSize)
+	return buf.String()
 }
 
 func (test test) SetupDevicesAndVolumeGroup(t *testing.T) testInfra {
 	t.Helper()
-	var loopDevices TestLoopbackDevices
-	for _, size := range test.loopDevices {
+	var loopDevices LoopbackDevices
+	for _, size := range test.LoopDevices {
 		loopDevices = append(loopDevices, MakeTestLoopbackDevice(t, size))
 	}
 	if loopDevices == nil {
@@ -320,7 +314,7 @@ func (test test) SetupDevicesAndVolumeGroup(t *testing.T) testInfra {
 	volumeGroup := MakeTestVolumeGroup(t, devices...)
 
 	var lvs []TestLogicalVolume
-	for _, lv := range test.lvs {
+	for _, lv := range test.Volumes {
 		lvs = append(lvs, volumeGroup.MakeTestLogicalVolume(lv))
 	}
 

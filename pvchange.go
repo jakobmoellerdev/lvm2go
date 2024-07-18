@@ -31,7 +31,7 @@ func (c *client) PVChange(ctx context.Context, opts ...PVChangeOption) error {
 	return c.RunLVM(ctx, append([]string{"pvchange"}, args.GetRaw()...)...)
 }
 
-func (L PVChangeOptionsList) AsArgs() (Arguments, error) {
+func (list PVChangeOptionsList) AsArgs() (Arguments, error) {
 	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
 }
 

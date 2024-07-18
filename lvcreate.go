@@ -7,10 +7,10 @@ import (
 
 type (
 	LVCreateOptions struct {
-		LogicalVolumeName
 		VolumeGroupName
-		Tags
+		LogicalVolumeName
 
+		Tags
 		Size
 		Extents
 		VirtualSize

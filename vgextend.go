@@ -12,7 +12,7 @@ type (
 		CommonOptions
 	}
 	VGExtendOption interface {
-		ApplyToVGRemoveOptions(opts *VGExtendOptions)
+		ApplyToVGExtendOptions(opts *VGExtendOptions)
 	}
 	VGExtendOptionsList []VGExtendOption
 )
@@ -20,6 +20,7 @@ type (
 var (
 	_ ArgumentGenerator = VGExtendOptionsList{}
 	_ Argument          = (*VGExtendOptions)(nil)
+	_ VGExtendOption    = (*VGExtendOptions)(nil)
 )
 
 func (c *client) VGExtend(ctx context.Context, opts ...VGExtendOption) error {
@@ -31,10 +32,26 @@ func (c *client) VGExtend(ctx context.Context, opts ...VGExtendOption) error {
 	return c.RunLVM(ctx, append([]string{"vgextend"}, args.GetRaw()...)...)
 }
 
-func (L VGExtendOptionsList) AsArgs() (Arguments, error) {
+func (opts *VGExtendOptions) ApplyToVGExtendOptions(new *VGExtendOptions) {
+	*new = *opts
+}
+
+func (list VGExtendOptionsList) AsArgs() (Arguments, error) {
 	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
 }
 
 func (opts *VGExtendOptions) ApplyToArgs(args Arguments) error {
-	return fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	if opts.VolumeGroupName == "" {
+		return fmt.Errorf("VolumeGroupName is required for extension of a volume group")
+	}
+
+	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
+		return err
+	}
+
+	return nil
 }

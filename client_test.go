@@ -13,30 +13,30 @@ func TestLVs(t *testing.T) {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	for _, tc := range []test{
 		{
-			loopDevices: []Size{
+			LoopDevices: []Size{
 				MustParseSize("10M"),
 			},
-			lvs: []TestLogicalVolume{
+			Volumes: []TestLogicalVolume{
 				{Options: LVCreateOptionList{
 					MustParseSize("5M"),
 				}},
 			},
 		},
 		{
-			loopDevices: []Size{
+			LoopDevices: []Size{
 				MustParseSize("5M"),
 			},
-			lvs: []TestLogicalVolume{
+			Volumes: []TestLogicalVolume{
 				{Options: LVCreateOptionList{
 					MustParseSize("5M"),
 				}},
 			},
 		},
 		{
-			loopDevices: []Size{
+			LoopDevices: []Size{
 				MustParseSize("10M"),
 			},
-			lvs: []TestLogicalVolume{
+			Volumes: []TestLogicalVolume{
 				{Options: LVCreateOptionList{
 					MustParseSize("5M"),
 				}},
@@ -46,10 +46,10 @@ func TestLVs(t *testing.T) {
 			},
 		},
 		{
-			loopDevices: []Size{
+			LoopDevices: []Size{
 				{Val: TestExtentSize.Val * 2, Unit: TestExtentSize.Unit},
 			},
-			lvs: []TestLogicalVolume{
+			Volumes: []TestLogicalVolume{
 				{Options: LVCreateOptionList{
 					MustParseExtents("1"),
 				}},
@@ -71,8 +71,8 @@ func TestLVs(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if len(lvs) != len(tc.lvs) {
-				t.Fatalf("Expected %d logical volumes, got %d", len(tc.lvs), len(lvs))
+			if len(lvs) != len(tc.Volumes) {
+				t.Fatalf("Expected %d logical volumes, got %d", len(tc.Volumes), len(lvs))
 			}
 
 			for _, expected := range infra.lvs {

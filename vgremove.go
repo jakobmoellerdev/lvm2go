@@ -69,7 +69,7 @@ var (
 )
 
 func (list VGRemoveOptionsList) AsArgs() (Arguments, error) {
-	args := NewArgs(ArgsTypeVGRemove)
+	args := NewArgs(ArgsTypeGeneric)
 	options := VGRemoveOptions{}
 	for _, opt := range list {
 		opt.ApplyToVGRemoveOptions(&options)

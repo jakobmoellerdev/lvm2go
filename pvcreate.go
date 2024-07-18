@@ -31,7 +31,7 @@ func (c *client) PVCreate(ctx context.Context, opts ...PVCreateOption) error {
 	return c.RunLVM(ctx, append([]string{"pvcreate"}, args.GetRaw()...)...)
 }
 
-func (L PVCreateOptionsList) AsArgs() (Arguments, error) {
+func (list PVCreateOptionsList) AsArgs() (Arguments, error) {
 	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
 }
 

@@ -2,7 +2,6 @@ package lvm2go
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -28,6 +27,17 @@ var prefixCandidates = []SizePrefix{
 }
 
 type Unit rune
+
+func (unit Unit) String() string {
+	if unit == UnitUnknown {
+		return ""
+	}
+	return string(unit)
+}
+
+func (unit Unit) MarshalText() ([]byte, error) {
+	return []byte(unit.String()), nil
+}
 
 const (
 	conversionFactor      = 1024
@@ -68,6 +78,10 @@ func IsValidUnit(unit Unit) bool {
 type Size struct {
 	Val float64
 	Unit
+}
+
+func (opt Size) MarshalText() ([]byte, error) {
+	return []byte(opt.String()), nil
 }
 
 var conversionTable = map[Unit]float64{
@@ -277,22 +291,38 @@ func (opt PrefixedSize) Validate() error {
 		return err
 	}
 
-	if !slices.Contains(prefixCandidates, opt.SizePrefix) {
+	if opt.SizePrefix != 0 && !slices.Contains(prefixCandidates, opt.SizePrefix) {
 		return ErrInvalidSizePrefix
 	}
 
 	return nil
 }
 
+const sizeArg = "--size"
+const poolMetadataSizeArg = "--poolmetadatasize"
+
 func (opt PrefixedSize) ApplyToArgs(args Arguments) error {
+	return opt.applyToArgs(sizeArg, args)
+}
+
+func (opt PrefixedSize) applyToArgs(arg string, args Arguments) error {
 	if err := opt.Validate(); err != nil {
 		return err
 	}
 
-	args.AddOrReplaceAll([]string{
-		"--size",
-		fmt.Sprintf("%s%s", string(opt.SizePrefix), opt.String()),
-	})
+	var sizeBuilder strings.Builder
+	if opt.SizePrefix != 0 {
+		sizeBuilder.WriteRune(rune(opt.SizePrefix))
+	}
+	sizeBuilder.WriteString(opt.Size.String())
+
+	args.AddOrReplaceAll([]string{arg, sizeBuilder.String()})
 
 	return nil
+}
+
+type PoolMetadataSize PrefixedSize
+
+func (opt PoolMetadataSize) ApplyToArgs(args Arguments) error {
+	return PrefixedSize(opt).applyToArgs(poolMetadataSizeArg, args)
 }

@@ -28,14 +28,13 @@ type args struct {
 type ArgsType string
 
 const (
+	ArgsTypeGeneric  ArgsType = "generic"
 	ArgsTypeLVs      ArgsType = "lvs"
 	ArgsTypePVs      ArgsType = "pvs"
 	ArgsTypeVGs      ArgsType = "vgs"
-	ArgsTypeGeneric  ArgsType = "generic"
 	ArgsTypeLVCreate ArgsType = "lvcreate"
 	ArgsTypeVGCreate ArgsType = "vgcreate"
-	ArgsTypeVGRemove ArgsType = "vgremove"
-	ArgsTypeLVRemove ArgsType = "lvremove"
+	ArgsTypeLVRename ArgsType = "lvrename"
 )
 
 func NewArgs(typ ArgsType) Arguments {

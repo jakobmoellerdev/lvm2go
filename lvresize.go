@@ -33,7 +33,7 @@ func (c *client) LVResize(ctx context.Context, opts ...LVResizeOption) error {
 	return c.RunLVM(ctx, append([]string{"lvresize"}, args.GetRaw()...)...)
 }
 
-func (L LVResizeOptionsList) AsArgs() (Arguments, error) {
+func (list LVResizeOptionsList) AsArgs() (Arguments, error) {
 	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
 }
 

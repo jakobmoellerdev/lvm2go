@@ -35,7 +35,7 @@ func (c *client) VGChange(ctx context.Context, opts ...VGChangeOption) error {
 	return c.RunLVM(ctx, append([]string{"vgchange"}, args.GetRaw()...)...)
 }
 
-func (L VGChangeOptionsList) AsArgs() (Arguments, error) {
+func (list VGChangeOptionsList) AsArgs() (Arguments, error) {
 	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
 }
 

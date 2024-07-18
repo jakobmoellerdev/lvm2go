@@ -9,6 +9,7 @@ import (
 type (
 	LVReduceOptions struct {
 		VolumeGroupName
+		LogicalVolumeName
 		CommonOptions
 	}
 	LVReduceOption interface {
@@ -31,7 +32,7 @@ func (c *client) LVReduce(ctx context.Context, opts ...LVReduceOption) error {
 	return c.RunLVM(ctx, append([]string{"lvreduce"}, args.GetRaw()...)...)
 }
 
-func (L LVReduceOptionsList) AsArgs() (Arguments, error) {
+func (list LVReduceOptionsList) AsArgs() (Arguments, error) {
 	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
 }
 

@@ -34,15 +34,9 @@ var (
 	_ VersionOption     = (*VersionOptions)(nil)
 )
 
-func (c *client) Version(ctx context.Context, opts ...VersionOption) (Version, error) {
-	args, err := VersionOptionsList(opts).AsArgs()
-	if err != nil {
-		return Version{}, err
-	}
-
+func DefaultVersionOutputProcessor() (*Version, RawOutputProcessor) {
 	version := Version{}
-
-	versionProcessor := RawOutputProcessor(func(line io.Reader) error {
+	return &version, func(line io.Reader) error {
 		scanner := bufio.NewScanner(line)
 		versionLine := scanner.Scan()
 		if !versionLine {
@@ -95,13 +89,22 @@ func (c *client) Version(ctx context.Context, opts ...VersionOption) (Version, e
 		}
 		version.ConfigurationFlags = configurationFields[2:]
 		return scanner.Err()
-	})
+	}
+}
+
+func (c *client) Version(ctx context.Context, opts ...VersionOption) (Version, error) {
+	args, err := VersionOptionsList(opts).AsArgs()
+	if err != nil {
+		return Version{}, err
+	}
+
+	version, versionProcessor := DefaultVersionOutputProcessor()
 
 	if err := c.RunLVMRaw(ctx, versionProcessor, append([]string{"version"}, args.GetRaw()...)...); err != nil {
 		return Version{}, fmt.Errorf("failed to get version: %v", err)
 	}
 
-	return version, nil
+	return *version, nil
 }
 
 func (list VersionOptionsList) AsArgs() (Arguments, error) {

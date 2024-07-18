@@ -34,15 +34,43 @@ func (c *client) RunLVMInto(ctx context.Context, into any, args ...string) error
 	} else {
 		err = json.NewDecoder(output).Decode(&into)
 	}
-	closeErr := output.Close()
 
-	return errors.Join(closeErr, err)
+	err = errors.Join(output.Close(), err)
+
+	if IsLVMNoSuchCommand(err) {
+		return fmt.Errorf("%q is not a valid command: %w", strings.Join(args, " "), err)
+	}
+
+	return err
+}
+
+func (c *client) RunLVMRaw(ctx context.Context, process RawOutputProcessor, args ...string) error {
+	return c.RunRaw(ctx, process, append([]string{GetLVMPath()}, args...)...)
 }
 
 type RawOutputProcessor func(out io.Reader) error
 
-func (c *client) RunLVMRaw(ctx context.Context, process RawOutputProcessor, args ...string) error {
-	output, err := StreamedCommand(ctx, CommandContext(ctx, GetLVMPath(), args...))
+func NoOpRawOutputProcessor(expectOutput bool) RawOutputProcessor {
+	return func(out io.Reader) error {
+		data, err := io.ReadAll(out)
+		if err != nil {
+			return fmt.Errorf("failed to read output: %v", err)
+		}
+		if expectOutput && len(data) == 0 {
+			return fmt.Errorf("expected output but got none")
+		}
+		if !expectOutput && len(data) > 0 {
+			return fmt.Errorf("expected no output but got: %s", string(data))
+		}
+		return nil
+	}
+}
+
+func (c *client) RunRaw(ctx context.Context, process RawOutputProcessor, args ...string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no command provided")
+	}
+	output, err := StreamedCommand(ctx, CommandContext(ctx, args[0], args[1:]...))
 	if err != nil {
 		return fmt.Errorf("failed to execute command: %v", err)
 	}

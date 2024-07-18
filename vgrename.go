@@ -12,7 +12,7 @@ type (
 		CommonOptions
 	}
 	VGRenameOption interface {
-		ApplyToVGRemoveOptions(opts *VGRenameOptions)
+		ApplyToVGRenameOptions(opts *VGRenameOptions)
 	}
 	VGRenameOptionsList []VGRenameOption
 )
@@ -31,8 +31,12 @@ func (c *client) VGRename(ctx context.Context, opts ...VGRenameOption) error {
 	return c.RunLVM(ctx, append([]string{"vgrename"}, args.GetRaw()...)...)
 }
 
-func (L VGRenameOptionsList) AsArgs() (Arguments, error) {
+func (list VGRenameOptionsList) AsArgs() (Arguments, error) {
 	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+}
+
+func (opts *VGRenameOptions) ApplyToVGRenameOptions(new *VGRenameOptions) {
+	*new = *opts
 }
 
 func (opts *VGRenameOptions) ApplyToArgs(args Arguments) error {

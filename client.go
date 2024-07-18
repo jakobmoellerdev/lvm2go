@@ -26,7 +26,9 @@ type Client interface {
 	LogicalVolumeClient
 	VolumeGroupClient
 	PhysicalVolumeClient
+	DevicesClient
 	MetaClient
+	DevicesClient
 }
 
 // MetaClient is a client that provides metadata information about the LVM2 library.
@@ -164,4 +166,31 @@ type PhysicalVolumeClient interface {
 	//
 	// See man lvm pvchange for more information.
 	PVChange(ctx context.Context, opts ...PVChangeOption) error
+}
+
+// DevicesClient is a client that provides operations on lvm2 device files.
+type DevicesClient interface {
+	// DevList returns a list of devices that match the given options.
+	//
+	// Replicates lvmdevices
+	// See man lvmdevices for more information.
+	DevList(ctx context.Context, opts ...DevListOption) ([]DeviceListEntry, error)
+
+	// DevCheck checks the device files and returns an error if any inconsistencies are found.
+	//
+	// Replicates lvmdevices --check
+	// See man lvmdevices for more information.
+	DevCheck(ctx context.Context, opts ...DevCheckOption) error
+
+	// DevUpdate updates the device files through attempted automatic corrections.
+	//
+	// Replicates lvmdevices --update
+	// See man lvmdevices for more information.
+	DevUpdate(ctx context.Context, opts ...DevUpdateOption) error
+
+	// DevModify adds and removes devices in device files with the given options.
+	//
+	// Replicates lvmdevices --adddev, --addpvid, --deldev and --delpvid
+	// See man lvmdevices for more information.
+	DevModify(ctx context.Context, opts ...DevModifyOption) error
 }

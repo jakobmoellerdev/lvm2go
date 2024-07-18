@@ -31,7 +31,7 @@ func (c *client) VGReduce(ctx context.Context, opts ...VGReduceOption) error {
 	return c.RunLVM(ctx, append([]string{"vgreduce"}, args.GetRaw()...)...)
 }
 
-func (L VGReduceOptionsList) AsArgs() (Arguments, error) {
+func (list VGReduceOptionsList) AsArgs() (Arguments, error) {
 	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
 }
 

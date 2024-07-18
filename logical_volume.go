@@ -89,15 +89,38 @@ type LogicalVolumeName string
 type FQLogicalVolumeName string
 
 func (opt FQLogicalVolumeName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
-	split := strings.Split(string(opt), "/")
-	opts.VolumeGroupName = VolumeGroupName(split[0])
-	opts.LogicalVolumeName = LogicalVolumeName(split[1])
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
 }
 
 func (opt FQLogicalVolumeName) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
+}
+
+func (opt FQLogicalVolumeName) ApplyToLVExtendOptions(opts *LVExtendOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
+}
+
+func (opt FQLogicalVolumeName) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
+}
+
+func (opt FQLogicalVolumeName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
+}
+
+func (opt FQLogicalVolumeName) ApplyToLVReduceOptions(opts *LVReduceOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
+}
+
+func (opt FQLogicalVolumeName) ApplyToLVRenameOptions(opts *LVRenameOptions) {
+	vgname, lvname := opt.Split()
+	opts.VolumeGroupName = vgname
+	opts.SetOldOrNew(lvname)
+}
+
+func (opt FQLogicalVolumeName) Split() (VolumeGroupName, LogicalVolumeName) {
 	split := strings.Split(string(opt), "/")
-	opts.VolumeGroupName = VolumeGroupName(split[0])
-	opts.LogicalVolumeName = LogicalVolumeName(split[1])
+	return VolumeGroupName(split[0]), LogicalVolumeName(split[1])
 }
 
 func (opt FQLogicalVolumeName) ApplyToArgs(args Arguments) error {
@@ -127,6 +150,11 @@ func (opt LogicalVolumeName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 }
 
 func (opt LogicalVolumeName) ApplyToArgs(args Arguments) error {
+	switch args.GetType() {
+	case ArgsTypeLVRename:
+		args.AddOrReplaceAll([]string{string(opt)})
+	}
+
 	args.AddOrReplaceAll([]string{"--name", string(opt)})
 	return nil
 }

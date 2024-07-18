@@ -63,7 +63,7 @@ func (opts *LVRemoveOptions) ApplyToArgs(args Arguments) error {
 }
 
 func (list LVRemoveOptionsList) AsArgs() (Arguments, error) {
-	args := NewArgs(ArgsTypeLVRemove)
+	args := NewArgs(ArgsTypeGeneric)
 	options := LVRemoveOptions{}
 	for _, opt := range list {
 		opt.ApplyToLVRemoveOptions(&options)
