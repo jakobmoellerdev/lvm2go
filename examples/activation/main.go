@@ -79,7 +79,7 @@ func main() {
 		slog.Error("state was unknown")
 		return
 	} else if state != StateActive {
-		slog.Error("expected logical volume to be active, got %s", state)
+		slog.Error("expected logical volume to be active", "state", state)
 		return
 	}
 }

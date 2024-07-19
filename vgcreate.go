@@ -15,7 +15,7 @@ type (
 		AutoActivation
 		Force
 		Zero
-		*PhysicalExtentSize
+		PhysicalExtentSize
 		AllocationPolicy
 
 		CommonOptions
