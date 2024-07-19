@@ -26,6 +26,12 @@ var prefixCandidates = []SizePrefix{
 	SizePrefixPlus,
 }
 
+const (
+	sizeArg             = "--size"
+	poolMetadataSizeArg = "--poolmetadatasize"
+	virtualSizeArg      = "--virtualsize"
+)
+
 type Unit rune
 
 func (unit Unit) String() string {
@@ -78,6 +84,14 @@ func IsValidUnit(unit Unit) bool {
 type Size struct {
 	Val float64
 	Unit
+}
+
+func (opt Size) Virtual() VirtualSize {
+	return VirtualSize(opt)
+}
+
+func (opt Size) ToPoolMetadata() PoolMetadataSize {
+	return PoolMetadataSize(opt)
 }
 
 func (opt Size) MarshalText() ([]byte, error) {
@@ -234,12 +248,20 @@ func (opt Size) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.Size = opt
 }
 
+func (opt Size) ApplyToLVResizeOptions(opts *LVResizeOptions) {
+	opts.Size = opt
+}
+
 func (opt Size) ApplyToArgs(args Arguments) error {
+	return opt.applyToArgs(sizeArg, args)
+}
+
+func (opt Size) applyToArgs(arg string, args Arguments) error {
 	if err := opt.Validate(); err != nil {
 		return err
 	}
 
-	args.AddOrReplaceAll([]string{"--size", opt.String()})
+	args.AddOrReplaceAll([]string{arg, opt.String()})
 
 	return nil
 }
@@ -298,9 +320,6 @@ func (opt PrefixedSize) Validate() error {
 	return nil
 }
 
-const sizeArg = "--size"
-const poolMetadataSizeArg = "--poolmetadatasize"
-
 func (opt PrefixedSize) ApplyToArgs(args Arguments) error {
 	return opt.applyToArgs(sizeArg, args)
 }
@@ -321,8 +340,34 @@ func (opt PrefixedSize) applyToArgs(arg string, args Arguments) error {
 	return nil
 }
 
-type PoolMetadataSize PrefixedSize
+func (opt PrefixedSize) ApplyToLVResizeOptions(opts *LVResizeOptions) {
+	opts.PrefixedSize = opt
+}
+
+type PoolMetadataPrefixedSize PrefixedSize
+
+func (opt PoolMetadataPrefixedSize) ApplyToArgs(args Arguments) error {
+	return PrefixedSize(opt).applyToArgs(poolMetadataSizeArg, args)
+}
+
+type PoolMetadataSize Size
 
 func (opt PoolMetadataSize) ApplyToArgs(args Arguments) error {
-	return PrefixedSize(opt).applyToArgs(poolMetadataSizeArg, args)
+	return Size(opt).applyToArgs(poolMetadataSizeArg, args)
+}
+
+type VirtualSize Size
+
+func (opt VirtualSize) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+	opts.VirtualSize = opt
+}
+
+func (opt VirtualSize) ApplyToArgs(args Arguments) error {
+	return Size(opt).applyToArgs(virtualSizeArg, args)
+}
+
+type VirtualPrefixedSize PrefixedSize
+
+func (opt VirtualPrefixedSize) ApplyToArgs(args Arguments) error {
+	return PrefixedSize(opt).applyToArgs(virtualSizeArg, args)
 }

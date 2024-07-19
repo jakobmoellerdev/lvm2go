@@ -8,16 +8,16 @@ type PhysicalVolume struct {
 	UUID         string             `json:"pv_uuid"`
 	Name         PhysicalVolumeName `json:"pv_name"`
 	DevSize      Size               `json:"dev_size"`
-	Major        uint64             `json:"pv_major"`
-	Minor        uint64             `json:"pv_minor"`
+	Major        int64              `json:"pv_major"`
+	Minor        int64              `json:"pv_minor"`
 	MdaFree      Size               `json:"pv_mda_free"`
 	MdaSize      Size               `json:"pv_mda_size"`
 	PeStart      Size               `json:"pe_start"`
 	Size         Size               `json:"pv_size"`
 	Free         Size               `json:"pv_free"`
 	Used         Size               `json:"pv_used"`
-	MdaCount     uint64             `json:"pv_mda_count"`
-	MdaUsedCount uint64             `json:"pv_mda_used_count"`
+	MdaCount     int64              `json:"pv_mda_count"`
+	MdaUsedCount int64              `json:"pv_mda_used_count"`
 	Tags         Tags               `json:"pv_tags"`
 	VGName       VolumeGroupName    `json:"vg_name"`
 	DeviceID     string             `json:"pv_device_id"`
@@ -63,13 +63,13 @@ func (pv *PhysicalVolume) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	for key, fieldPtr := range map[string]*uint64{
+	for key, fieldPtr := range map[string]*int64{
 		"pv_major":          &pv.Major,
 		"pv_minor":          &pv.Minor,
 		"pv_mda_count":      &pv.MdaCount,
 		"pv_mda_used_count": &pv.MdaUsedCount,
 	} {
-		if err := unmarshalAndConvertToUint64(raw, key, fieldPtr); err != nil {
+		if err := unmarshalAndConvertToInt64(raw, key, fieldPtr); err != nil {
 			return err
 		}
 	}

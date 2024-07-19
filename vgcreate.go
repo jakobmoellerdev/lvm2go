@@ -12,9 +12,10 @@ type (
 
 		PhysicalVolumeNames
 
+		AutoActivation
 		Force
-		*Zero
-		PhysicalExtentSize
+		Zero
+		*PhysicalExtentSize
 		AllocationPolicy
 
 		CommonOptions
@@ -68,6 +69,7 @@ func (opts *VGCreateOptions) ApplyToArgs(args Arguments) error {
 		opts.Zero,
 		opts.PhysicalExtentSize,
 		opts.AllocationPolicy,
+		opts.AutoActivation,
 		opts.CommonOptions,
 	} {
 		if err := opt.ApplyToArgs(args); err != nil {

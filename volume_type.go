@@ -1,5 +1,9 @@
 package lvm2go
 
+import (
+	"fmt"
+)
+
 type Type string
 
 const (
@@ -25,7 +29,7 @@ func (opt Type) ApplyToArgs(args Arguments) error {
 	if opt == "" {
 		return nil
 	}
-	args.AddOrReplaceAll([]string{"--type", string(opt)})
+	args.AddOrReplace(fmt.Sprintf("--type=%s", string(opt)))
 	return nil
 }
 

@@ -2,23 +2,22 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
+	"fmt"
 )
 
 type (
 	LVChangeOptions struct {
 		VolumeGroupName
 		LogicalVolumeName
-		FQLogicalVolumeName
 
 		Permission
 
 		Tags
 		DelTags
 
-		*Zero
-		Yes
-		Activate
+		Zero
+		RequestConfirm
+		ActivationState
 		ActivationMode
 		AllocationPolicy
 		*ErrorWhenFull
@@ -66,29 +65,28 @@ func (list LVChangeOptionsList) AsArgs() (Arguments, error) {
 }
 
 func (opts *LVChangeOptions) ApplyToArgs(args Arguments) error {
-	if opts.FQLogicalVolumeName == "" {
-		if opts.VolumeGroupName == "" {
-			return errors.New("VolumeGroupName is required")
-		}
-		if opts.LogicalVolumeName == "" {
-			return errors.New("LogicalVolumeName is required")
-		}
-	} else {
-		var err error
-		opts.FQLogicalVolumeName, err = NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
-		if err != nil {
-			return err
-		}
+	if opts.LogicalVolumeName == "" {
+		return fmt.Errorf("LogicalVolumeName is required for removal of a logical volume")
 	}
 
-	for _, arg := range []Argument{
-		opts.FQLogicalVolumeName,
+	if opts.VolumeGroupName == "" {
+		return fmt.Errorf("VolumeGroupName is required for removal of a logical volume")
+	}
+
+	var identifier []Argument
+	fq, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
+	if err != nil {
+		return err
+	}
+	identifier = []Argument{fq}
+
+	for _, arg := range append(identifier,
 		opts.Permission,
 		opts.Tags,
 		opts.DelTags,
 		opts.Zero,
-		opts.Yes,
-		opts.Activate,
+		opts.RequestConfirm,
+		opts.ActivationState,
 		opts.ActivationMode,
 		opts.AllocationPolicy,
 		opts.ErrorWhenFull,
@@ -101,7 +99,7 @@ func (opts *LVChangeOptions) ApplyToArgs(args Arguments) error {
 		opts.Compression,
 		opts.AutoActivation,
 		opts.CommonOptions,
-	} {
+	) {
 		if err := arg.ApplyToArgs(args); err != nil {
 			return err
 		}

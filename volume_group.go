@@ -46,6 +46,9 @@ var _ Argument = VolumeGroupName("")
 func (opt VolumeGroupName) ApplyToLVsOptions(opts *LVsOptions) {
 	opts.VolumeGroupName = opt
 }
+func (opt VolumeGroupName) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.VolumeGroupName = opt
+}
 func (opt VolumeGroupName) ApplyToVGsOptions(opts *VGsOptions) {
 	opts.VolumeGroupName = opt
 }
@@ -59,6 +62,10 @@ func (opt VolumeGroupName) ApplyToVGRemoveOptions(opts *VGRemoveOptions) {
 	opts.VolumeGroupName = opt
 }
 func (opt VolumeGroupName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
+	opts.VolumeGroupName = opt
+}
+
+func (opt VolumeGroupName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
 	opts.VolumeGroupName = opt
 }
 

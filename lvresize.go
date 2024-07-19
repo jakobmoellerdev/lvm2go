@@ -2,7 +2,6 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
 	"fmt"
 )
 
@@ -10,6 +9,8 @@ type (
 	LVResizeOptions struct {
 		LogicalVolumeName
 		VolumeGroupName
+
+		PrefixedSize
 
 		CommonOptions
 	}
@@ -34,9 +35,43 @@ func (c *client) LVResize(ctx context.Context, opts ...LVResizeOption) error {
 }
 
 func (list LVResizeOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	args := NewArgs(ArgsTypeGeneric)
+	options := LVResizeOptions{}
+	for _, opt := range list {
+		opt.ApplyToLVResizeOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
 func (opts *LVResizeOptions) ApplyToArgs(args Arguments) error {
-	return fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	if opts.LogicalVolumeName == "" {
+		return fmt.Errorf("LogicalVolumeName or ThinPoolName is required for creation of a logical volume")
+	}
+
+	if opts.VolumeGroupName == "" {
+		return fmt.Errorf("VolumeGroupName is required for creation of a logical volume")
+	}
+
+	var identifier []Argument
+
+	fq, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
+	if err != nil {
+		return err
+	}
+	identifier = []Argument{fq}
+
+	for _, opt := range append(
+		identifier,
+		opts.PrefixedSize,
+		opts.CommonOptions,
+	) {
+		if err := opt.ApplyToArgs(args); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

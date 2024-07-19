@@ -68,18 +68,16 @@ func (c *client) LVs(ctx context.Context, opts ...LVsOption) ([]LogicalVolume, e
 }
 
 func (opts *LVsOptions) ApplyToArgs(args Arguments) error {
-	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
-		return err
+	for _, arg := range []Argument{
+		opts.VolumeGroupName,
+		opts.Tags,
+		opts.CommonOptions,
+		opts.ColumnOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
 	}
-
-	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.ColumnOptions.ApplyToArgs(args); err != nil {
-		return err
-	}
-
 	return nil
 }
 

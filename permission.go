@@ -1,5 +1,9 @@
 package lvm2go
 
+import (
+	"fmt"
+)
+
 type Permission string
 
 const (
@@ -8,7 +12,10 @@ const (
 )
 
 func (opt Permission) ApplyToArgs(args Arguments) error {
-	args.AddOrReplaceAll([]string{"--permission", string(opt)})
+	if opt == "" {
+		return nil
+	}
+	args.AddOrReplace(fmt.Sprintf("--permission=%s", string(opt)))
 	return nil
 }
 

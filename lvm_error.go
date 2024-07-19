@@ -11,7 +11,7 @@ var (
 	// The volume group might not be present or the logical volume might not be present in the volume group.
 	NotFoundPattern = regexp.MustCompile(`Volume group "(.*?)" not found|Failed to find logical volume "(.*?)"`)
 
-	NoSuchCommandPattern = regexp.MustCompile(`No such command`)
+	NoSuchCommandPattern = regexp.MustCompile(`RequestConfirm such command`)
 )
 
 // IsLVMNotFound returns true if the error is a LVM recognized error and it determined that either

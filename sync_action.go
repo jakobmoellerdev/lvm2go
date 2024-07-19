@@ -1,5 +1,9 @@
 package lvm2go
 
+import (
+	"fmt"
+)
+
 type SyncAction string
 
 const (
@@ -8,7 +12,10 @@ const (
 )
 
 func (opt SyncAction) ApplyToArgs(args Arguments) error {
-	args.AddOrReplaceAll([]string{"--syncaction", string(opt)})
+	if opt == "" {
+		return nil
+	}
+	args.AddOrReplace(fmt.Sprintf("--syncaction=%s", string(opt)))
 	return nil
 }
 

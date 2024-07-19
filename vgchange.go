@@ -10,6 +10,7 @@ type (
 	VGChangeOptions struct {
 		VolumeGroupName
 
+		AutoActivation
 		Tags
 		DelTags
 

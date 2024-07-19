@@ -1,18 +1,23 @@
 package lvm2go
 
-type Activate string
+type ActivationState string
 
 const (
-	Y  Activate = "y"
-	N  Activate = "n"
-	AY Activate = "ay"
+	Activate     ActivationState = "y"
+	Deactivate   ActivationState = "n"
+	AutoActivate ActivationState = "ay"
 )
 
-func (opt Activate) ApplyToLVCreateOptions(opts *LVCreateOptions) {
-	opts.Activate = opt
+func (opt ActivationState) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+	opts.ActivationState = opt
 }
 
-func (opt Activate) ApplyToArgs(args Arguments) error {
+func (opt ActivationState) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.ActivationState = opt
+
+}
+
+func (opt ActivationState) ApplyToArgs(args Arguments) error {
 	if opt == "" {
 		return nil
 	}

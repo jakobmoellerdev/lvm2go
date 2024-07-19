@@ -1,5 +1,9 @@
 package lvm2go
 
+import (
+	"fmt"
+)
+
 type ActivationMode string
 
 const (
@@ -9,7 +13,10 @@ const (
 )
 
 func (opt ActivationMode) ApplyToArgs(args Arguments) error {
-	args.AddOrReplaceAll([]string{"--activationmode", string(opt)})
+	if opt == "" {
+		return nil
+	}
+	args.AddOrReplace(fmt.Sprintf("--activationmode=%s", string(opt)))
 	return nil
 }
 

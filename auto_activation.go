@@ -1,12 +1,28 @@
 package lvm2go
 
-type AutoActivation bool
+import (
+	"fmt"
+)
+
+const (
+	SetAutoActivate   AutoActivation = "y"
+	SetNoAutoActivate AutoActivation = "n"
+)
+
+type AutoActivation string
+
+func (opt AutoActivation) ApplyToVGCreateOptions(opts *VGCreateOptions) {
+	opts.AutoActivation = opt
+}
 
 func (opt AutoActivation) ApplyToArgs(args Arguments) error {
-	args.AddOrReplaceAll([]string{"--setautoactivation", map[bool]string{true: "y", false: "n"}[bool(opt)]})
+	if opt == "" {
+		return nil
+	}
+	args.AddOrReplace(fmt.Sprintf("--setautoactivation=%s", string(opt)))
 	return nil
 }
 
-func (opt AutoActivation) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+func (opt AutoActivation) ApplyToVGChangeOptions(opts *VGChangeOptions) {
 	opts.AutoActivation = opt
 }

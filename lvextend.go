@@ -11,8 +11,8 @@ type (
 		VolumeGroupName
 		LogicalVolumeName
 
-		PoolMetadataSize
-		PrefixedSize
+		PoolMetadataPrefixedSize
+		Size
 		Extents
 
 		CommonOptions
@@ -69,8 +69,8 @@ func (opts *LVExtendOptions) ApplyToArgs(args Arguments) error {
 		return fmt.Errorf("size or extents must be specified")
 	}
 
-	if opts.PoolMetadataSize.Val == 0 && opts.PrefixedSize.Val == 0 && opts.Extents.Val == 0 {
-		return errors.New("PoolMetadataSize, PrefixedSize or Extents is required")
+	if opts.PoolMetadataPrefixedSize.Val == 0 && opts.Size.Val == 0 && opts.Extents.Val == 0 {
+		return errors.New("PoolMetadataPrefixedSize, Size or Extents is required")
 	}
 
 	fqLogicalVolumeName, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
@@ -80,8 +80,8 @@ func (opts *LVExtendOptions) ApplyToArgs(args Arguments) error {
 
 	for _, arg := range []Argument{
 		fqLogicalVolumeName,
-		opts.PrefixedSize,
-		opts.PoolMetadataSize,
+		opts.Size,
+		opts.PoolMetadataPrefixedSize,
 		opts.Extents,
 		opts.CommonOptions,
 	} {

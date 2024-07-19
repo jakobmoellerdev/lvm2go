@@ -1,18 +1,3 @@
-# lvm2go
-
-Package lvm2go implements a Go API for the lvm2 command line tools.
-
-The API is designed to be simple and easy to use, while still providing
-access to the full functionality of the LVM2 command line tools.
-
-Compared to a simple command line wrapper, lvm2go provides a more structured
-way to interact with lvm2, and allows for more complex interactions while safeguarding typing
-and allowing for fine-grained control over the input of various usually problematic parameters,
-such as sizes (and their conversion), validation of input parameters, and caching of data.
-
-A simple usage example is shown below:
-
-```go
 package main
 
 import (
@@ -46,8 +31,10 @@ func main() {
 
 	pvs := PhysicalVolumesFrom(losetup.Device())
 	vgName := VolumeGroupName("test")
+	pool := MustNewThinPool(vgName, "pool")
+	poolSize := MustParseExtents("100%FREE")
 	lvName := LogicalVolumeName("test")
-	lvSize := MustParseSize("100M")
+	lvSize := MustParseSize("100M").Virtual()
 
 	if err := lvm.VGCreate(ctx, vgName, pvs); err != nil {
 		slog.Error(err.Error())
@@ -59,15 +46,28 @@ func main() {
 		}
 	}()
 
-	if err := lvm.LVCreate(ctx, vgName, lvName, lvSize); err != nil {
+	if err := lvm.LVCreate(ctx, vgName, pool.LogicalVolumeName, poolSize, Thin(true), ZeroVolume); err != nil {
 		slog.Error(err.Error())
 		return
 	}
 	defer func() {
-		if err := lvm.LVRemove(ctx, vgName, lvName); err != nil {
+		if err := lvm.LVRemove(ctx, vgName, pool.LogicalVolumeName); err != nil {
 			slog.Error(err.Error())
 		}
 	}()
 
+	if err := lvm.LVCreate(ctx, pool, lvName, lvSize); err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	defer func() {
+		if err := lvm.LVRemove(ctx, pool, lvName); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+
+	if err := lvm.LVResize(ctx, vgName, lvName, MustParsePrefixedSize("+10M")); err != nil {
+		slog.Error(err.Error())
+		return
+	}
 }
-```

@@ -1,17 +1,24 @@
 package lvm2go
 
-type Zero bool
+import (
+	"fmt"
+)
 
-var zeroMapping = map[bool]string{true: "y", false: "n"}
+const (
+	DoNotZeroVolume Zero = "n"
+	ZeroVolume      Zero = "y"
+)
 
-func (opt *Zero) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+type Zero string
+
+func (opt Zero) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.Zero = opt
 }
 
-func (opt *Zero) ApplyToArgs(args Arguments) error {
-	if opt == nil {
+func (opt Zero) ApplyToArgs(args Arguments) error {
+	if opt == "" {
 		return nil
 	}
-	args.AddOrReplaceAll([]string{"--zero", zeroMapping[bool(*opt)]})
+	args.AddOrReplace(fmt.Sprintf("--zero=%s", string(opt)))
 	return nil
 }

@@ -11,10 +11,8 @@ import (
 	"log/slog"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 )
@@ -81,17 +79,9 @@ type LoopbackDevices []LoopbackDevice
 func (t LoopbackDevices) Devices() Devices {
 	var devices Devices
 	for _, loop := range t {
-		devices = append(devices, loop.Device)
+		devices = append(devices, loop.Device())
 	}
 	return devices
-}
-
-// LoopbackDevice is a struct that holds the loopback Device and the backing file.
-// It is used to create a loopback Device for testing purposes.
-type LoopbackDevice struct {
-	Device      string
-	BackingFile string
-	Size        Size
 }
 
 func MakeTestLoopbackDevice(t *testing.T, size Size) LoopbackDevice {
@@ -102,67 +92,34 @@ func MakeTestLoopbackDevice(t *testing.T, size Size) LoopbackDevice {
 	logger := slog.With("size", size, "backingFilePath", backingFilePath)
 
 	logger.DebugContext(ctx, "creating test loopback device ...")
-	loop, err := MakeLoopbackDevice(ctx, backingFilePath, size)
+
+	size, err := size.ToUnit(UnitBytes)
 	if err != nil {
+		t.Fatal(err)
+	}
+	size.Val = RoundUp(size.Val, TestExtentBytes) + TestExtentBytes
+
+	loop, err := CreateLoopbackDevice(size)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := loop.SetBackingFile(backingFilePath); err != nil {
+		t.Fatal(err)
+	}
+	if err := loop.Open(); err != nil {
 		t.Fatal(err)
 	}
 	logger = logger.With("loop", loop)
 	logger.DebugContext(ctx, "created test loopback device successfully")
 
-	testDevice := LoopbackDevice{
-		Device:      loop,
-		BackingFile: backingFilePath,
-	}
-
 	t.Cleanup(func() {
 		logger.DebugContext(ctx, "cleaning up test loopback device")
-
-		if err := exec.CommandContext(ctx, "losetup", "-d", testDevice.Device).Run(); err != nil {
-			t.Fatal(fmt.Errorf("failed to detach test loopback Device: %w", err))
-		}
-		if err := os.Remove(testDevice.BackingFile); err != nil {
-			t.Fatal(fmt.Errorf("failed to remove test backing file: %w", err))
+		if err := loop.Close(); err != nil {
+			t.Fatal(err)
 		}
 	})
 
-	return testDevice
-}
-
-// MakeLoopbackDevice creates a loopback Device with the specified size
-// and returns the loopback Device name
-// Example:
-//
-//	MakeLoopbackDevice(ctx, "/tmp/loopback.img", "4G")
-//	// returns /dev/loop0
-func MakeLoopbackDevice(ctx context.Context, name string, size Size) (string, error) {
-	command := exec.Command("losetup", "-f")
-	command.Stderr = os.Stderr
-	loop := bytes.Buffer{}
-	command.Stdout = &loop
-	err := command.Run()
-	if err != nil {
-		return "", err
-	}
-	loopDev := strings.TrimRight(loop.String(), "\n")
-
-	// add an extra extent to the size to account for metadata
-	size, err = size.ToUnit(UnitBytes)
-	if err != nil {
-		return "", err
-	}
-	size.Val = RoundUp(size.Val, TestExtentBytes) + TestExtentBytes
-
-	out, err := exec.CommandContext(ctx, "truncate", fmt.Sprintf("--size=%v", uint64(size.Val)), name).CombinedOutput()
-	if err != nil {
-		slog.ErrorContext(ctx, "failed truncate", "output", string(out), "error", err)
-		return "", err
-	}
-	out, err = exec.CommandContext(ctx, "losetup", loopDev, name).CombinedOutput()
-	if err != nil {
-		slog.ErrorContext(ctx, "failed losetup", "output", string(out), "error", err)
-		return "", err
-	}
-	return loopDev, nil
+	return loop
 }
 
 // RoundUp rounds up n to the nearest multiple of x
@@ -258,7 +215,7 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) Test
 	} else if extents := template.Extents(); extents.Val > 0 {
 		sizeOption = extents
 	} else {
-		vg.t.Logf("No size specified for logical volume %s, defaulting to 100M", logicalVolumeName)
+		vg.t.Logf("RequestConfirm size specified for logical volume %s, defaulting to 100M", logicalVolumeName)
 		if size.Val == 0 {
 			size = MustParseSize("100M")
 		}
@@ -307,7 +264,7 @@ func (test test) SetupDevicesAndVolumeGroup(t *testing.T) testInfra {
 		loopDevices = append(loopDevices, MakeTestLoopbackDevice(t, size))
 	}
 	if loopDevices == nil {
-		t.Fatal("No loop devices defined for infra")
+		t.Fatal("RequestConfirm loop devices defined for infra")
 	}
 	devices := loopDevices.Devices()
 

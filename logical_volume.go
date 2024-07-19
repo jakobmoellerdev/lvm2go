@@ -3,7 +3,7 @@ package lvm2go
 import (
 	"encoding/json"
 	"errors"
-	"strings"
+	"fmt"
 )
 
 var ErrVolumeGroupNameRequired = errors.New("VolumeGroupName is required for a fully qualified logical volume")
@@ -15,12 +15,12 @@ type LogicalVolume struct {
 	FullName string            `json:"lv_full_name"`
 
 	Path  string `json:"lv_path"`
-	Major uint64 `json:"lv_kernel_major"`
-	Minor uint64 `json:"lv_kernel_minor"`
+	Major int64  `json:"lv_kernel_major"`
+	Minor int64  `json:"lv_kernel_minor"`
 
-	Tags string `json:"lv_tags"`
-	Attr string `json:"lv_attr"`
-	Size Size   `json:"lv_size"`
+	Tags string       `json:"lv_tags"`
+	Attr LVAttributes `json:"lv_attr"`
+	Size Size         `json:"lv_size"`
 
 	Origin            string `json:"origin"`
 	OriginSize        Size   `json:"origin_size"`
@@ -44,7 +44,6 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		"lv_full_name": &lv.FullName,
 		"lv_path":      &lv.Path,
 		"lv_tags":      &lv.Tags,
-		"lv_attr":      &lv.Attr,
 		"origin":       &lv.Origin,
 		"pool_lv":      &lv.PoolLogicalVolume,
 		"vg_name":      (*string)(&lv.VolumeGroupName),
@@ -54,11 +53,11 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	for key, fieldPtr := range map[string]*uint64{
+	for key, fieldPtr := range map[string]*int64{
 		"lv_kernel_major": &lv.Major,
 		"lv_kernel_minor": &lv.Minor,
 	} {
-		if err := unmarshalAndConvertToUint64(raw, key, fieldPtr); err != nil {
+		if err := unmarshalAndConvertToInt64(raw, key, fieldPtr); err != nil {
 			return err
 		}
 	}
@@ -81,65 +80,18 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	return nil
+	return unmarshalAndConvertToLVAttributes(raw, "lv_attr", &lv.Attr)
+}
+
+func (lv *LogicalVolume) GetFQLogicalVolumeName() (*FQLogicalVolumeName, error) {
+	fq, err := NewFQLogicalVolumeName(lv.VolumeGroupName, lv.Name)
+	if err != nil {
+		return nil, err
+	}
+	return fq, fq.Validate()
 }
 
 type LogicalVolumeName string
-
-type FQLogicalVolumeName string
-
-func (opt FQLogicalVolumeName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
-	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
-}
-
-func (opt FQLogicalVolumeName) ApplyToLVCreateOptions(opts *LVCreateOptions) {
-	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
-}
-
-func (opt FQLogicalVolumeName) ApplyToLVExtendOptions(opts *LVExtendOptions) {
-	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
-}
-
-func (opt FQLogicalVolumeName) ApplyToLVChangeOptions(opts *LVChangeOptions) {
-	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
-}
-
-func (opt FQLogicalVolumeName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
-	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
-}
-
-func (opt FQLogicalVolumeName) ApplyToLVReduceOptions(opts *LVReduceOptions) {
-	opts.VolumeGroupName, opts.LogicalVolumeName = opt.Split()
-}
-
-func (opt FQLogicalVolumeName) ApplyToLVRenameOptions(opts *LVRenameOptions) {
-	vgname, lvname := opt.Split()
-	opts.VolumeGroupName = vgname
-	opts.SetOldOrNew(lvname)
-}
-
-func (opt FQLogicalVolumeName) Split() (VolumeGroupName, LogicalVolumeName) {
-	split := strings.Split(string(opt), "/")
-	return VolumeGroupName(split[0]), LogicalVolumeName(split[1])
-}
-
-func (opt FQLogicalVolumeName) ApplyToArgs(args Arguments) error {
-	args.AddOrReplaceAll([]string{string(opt)})
-	return nil
-}
-
-func NewFQLogicalVolumeName(vg VolumeGroupName, lv LogicalVolumeName) (FQLogicalVolumeName, error) {
-	if vg == "" {
-		return "", ErrVolumeGroupNameRequired
-	}
-	if lv == "" {
-		return "", ErrLogicalVolumeNameRequired
-	}
-	return FQLogicalVolumeName(string(vg) + "/" + string(lv)), nil
-}
-
-var _ Argument = LogicalVolumeName("")
-var _ Argument = FQLogicalVolumeName("")
 
 func (opt LogicalVolumeName) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.LogicalVolumeName = opt
@@ -149,12 +101,96 @@ func (opt LogicalVolumeName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 	opts.LogicalVolumeName = opt
 }
 
+func (opt LogicalVolumeName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
+	opts.LogicalVolumeName = opt
+}
+
+func (opt LogicalVolumeName) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.LogicalVolumeName = opt
+}
+
+type FQLogicalVolumeName struct {
+	VolumeGroupName
+	LogicalVolumeName
+}
+
+func (opt *FQLogicalVolumeName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.VolumeGroupName, opt.LogicalVolumeName
+}
+
+func (opt *FQLogicalVolumeName) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.VolumeGroupName, opt.LogicalVolumeName
+}
+
+func (opt *FQLogicalVolumeName) ApplyToLVExtendOptions(opts *LVExtendOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.VolumeGroupName, opt.LogicalVolumeName
+}
+
+func (opt *FQLogicalVolumeName) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.VolumeGroupName, opt.LogicalVolumeName
+}
+
+func (opt *FQLogicalVolumeName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.VolumeGroupName, opt.LogicalVolumeName
+}
+
+func (opt *FQLogicalVolumeName) ApplyToLVReduceOptions(opts *LVReduceOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.VolumeGroupName, opt.LogicalVolumeName
+}
+func (opt *FQLogicalVolumeName) ApplyToLVRenameOptions(opts *LVRenameOptions) {
+	opts.VolumeGroupName = opt.VolumeGroupName
+	opts.SetOldOrNew(opt.LogicalVolumeName)
+}
+
+func (opt *FQLogicalVolumeName) Split() (VolumeGroupName, LogicalVolumeName) {
+	return opt.VolumeGroupName, opt.LogicalVolumeName
+}
+
+func (opt *FQLogicalVolumeName) Validate() error {
+	if opt.VolumeGroupName == "" {
+		return ErrVolumeGroupNameRequired
+	}
+	if opt.LogicalVolumeName == "" {
+		return ErrLogicalVolumeNameRequired
+	}
+	return nil
+}
+
+func (opt *FQLogicalVolumeName) ApplyToArgs(args Arguments) error {
+	if opt == nil {
+		return nil
+	}
+
+	if err := opt.Validate(); err != nil {
+		return err
+	}
+
+	args.AddOrReplace(fmt.Sprintf("%s/%s", opt.VolumeGroupName, opt.LogicalVolumeName))
+	return nil
+}
+
+func MustNewFQLogicalVolumeName(vg VolumeGroupName, lv LogicalVolumeName) *FQLogicalVolumeName {
+	fq, err := NewFQLogicalVolumeName(vg, lv)
+	if err != nil {
+		panic(err)
+	}
+	return fq
+}
+
+func NewFQLogicalVolumeName(vg VolumeGroupName, lv LogicalVolumeName) (*FQLogicalVolumeName, error) {
+	fq := &FQLogicalVolumeName{vg, lv}
+	return fq, fq.Validate()
+}
+
+var _ Argument = LogicalVolumeName("")
+var _ Argument = (*FQLogicalVolumeName)(nil)
+
 func (opt LogicalVolumeName) ApplyToArgs(args Arguments) error {
 	switch args.GetType() {
 	case ArgsTypeLVRename:
-		args.AddOrReplaceAll([]string{string(opt)})
+		args.AddOrReplace(string(opt))
 	}
 
-	args.AddOrReplaceAll([]string{"--name", string(opt)})
+	args.AddOrReplace(fmt.Sprintf("--name=%s", string(opt)))
 	return nil
 }

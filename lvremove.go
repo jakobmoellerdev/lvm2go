@@ -9,6 +9,8 @@ type (
 	LVRemoveOptions struct {
 		LogicalVolumeName
 		VolumeGroupName
+
+		Force
 		Tags
 		Select
 
@@ -35,25 +37,26 @@ func (c *client) LVRemove(ctx context.Context, opts ...LVRemoveOption) error {
 }
 
 func (opts *LVRemoveOptions) ApplyToArgs(args Arguments) error {
-	if opts.VolumeGroupName == "" {
-		return fmt.Errorf("VolumeGroupName is required for removal of a volume group")
-	}
-
 	if opts.LogicalVolumeName == "" {
 		return fmt.Errorf("LogicalVolumeName is required for removal of a logical volume")
 	}
 
-	logicalVolumeName, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
+	if opts.VolumeGroupName == "" {
+		return fmt.Errorf("VolumeGroupName is required for removal of a logical volume")
+	}
+
+	var identifier []Argument
+	fq, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
 	if err != nil {
 		return err
 	}
+	identifier = []Argument{fq}
 
-	for _, arg := range []Argument{
-		logicalVolumeName,
+	for _, arg := range append(identifier,
 		opts.Tags,
-		Force(true), // Force is required for removal without confirmation
+		opts.Force,
 		opts.CommonOptions,
-	} {
+	) {
 		if err := arg.ApplyToArgs(args); err != nil {
 			return err
 		}

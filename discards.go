@@ -9,6 +9,9 @@ const (
 )
 
 func (opt Discards) ApplyToArgs(args Arguments) error {
+	if opt == "" {
+		return nil
+	}
 	args.AddOrReplaceAll([]string{"--discards", string(opt)})
 	return nil
 }
