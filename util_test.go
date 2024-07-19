@@ -103,6 +103,9 @@ func MakeTestLoopbackDevice(t *testing.T, size Size) LoopbackDevice {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := loop.FindFree(); err != nil {
+		t.Fatal(err)
+	}
 	if err := loop.SetBackingFile(backingFilePath); err != nil {
 		t.Fatal(err)
 	}
