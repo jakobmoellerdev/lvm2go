@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 
@@ -25,49 +26,44 @@ import (
 
 func main() {
 	if os.Geteuid() != 0 {
-		panic("panicking because it requires root privileges to setup its environment.")
+		panic("panicking because lvm2 requires root privileges for most operations.")
 	}
+	if err := run(); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
+}
 
+func run() (err error) {
 	ctx := context.Background()
 	lvm := NewClient()
-
-	deviceSize := MustParseSize("1G")
-
-	losetup, err := NewLoopbackDevice(deviceSize)
-	if err != nil {
-		slog.Error(err.Error())
-		return
-	}
-	defer func() {
-		if err := losetup.Close(); err != nil {
-			slog.Error(err.Error())
-		}
-	}()
-
-	pvs := PhysicalVolumesFrom(losetup.Device())
 	vgName := VolumeGroupName("test")
 	lvName := LogicalVolumeName("test")
+	deviceSize := MustParseSize("1G")
 	lvSize := MustParseSize("100M")
 
-	if err := lvm.VGCreate(ctx, vgName, pvs); err != nil {
-		slog.Error(err.Error())
+	var losetup LoopbackDevice
+	if losetup, err = NewLoopbackDevice(deviceSize); err != nil {
 		return
 	}
 	defer func() {
-		if err := lvm.VGRemove(ctx, vgName); err != nil {
-			slog.Error(err.Error())
-		}
+		err = errors.Join(err, losetup.Close())
 	}()
 
-	if err := lvm.LVCreate(ctx, vgName, lvName, lvSize); err != nil {
-		slog.Error(err.Error())
+	if err = lvm.VGCreate(ctx, vgName, PhysicalVolumesFrom(losetup.Device())); err != nil {
 		return
 	}
 	defer func() {
-		if err := lvm.LVRemove(ctx, vgName, lvName); err != nil {
-			slog.Error(err.Error())
-		}
+		err = errors.Join(err, lvm.VGRemove(ctx, vgName))
 	}()
 
+	if err = lvm.LVCreate(ctx, vgName, lvName, lvSize); err != nil {
+		return
+	}
+	defer func() {
+		err = errors.Join(err, lvm.LVRemove(ctx, vgName, lvName))
+	}()
+
+	return
 }
 ```
