@@ -34,7 +34,7 @@ func main() {
 	lvName := LogicalVolumeName("test")
 	lvSize := MustParseSize("100M")
 
-	if err := lvm.VGCreate(ctx, vgName, pvs, SetNoAutoActivate); err != nil {
+	if err := lvm.VGCreate(ctx, vgName, pvs); err != nil {
 		slog.Error(err.Error())
 		return
 	}
