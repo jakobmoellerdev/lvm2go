@@ -28,8 +28,8 @@ jobs:
       - name: Run tests
         run: sudo go test ./...
       - name: Run simple example
-        run: go run examples/simple/main.go
+        run: sudo go run examples/simple/main.go
       - name: Run activation example
-        run: go run examples/activation/main.go
+        run: sudo go run examples/activation/main.go
       - name: Run thinpool example
-        run: go run examples/thinpool/main.go
+        run: sudo go run examples/thinpool/main.go
