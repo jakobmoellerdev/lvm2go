@@ -1,3 +1,6 @@
+ci:
+  skip: ['golangci-lint', 'go-test']
+
 repos:
   - repo: local
     hooks:
