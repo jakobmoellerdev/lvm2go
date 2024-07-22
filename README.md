@@ -78,16 +78,17 @@ func run() (err error) {
 
 This set of commands is implemented and tested to some extent. The tested feature set is described in the table below.
 
-| Command  | State | Special Use Cases | E2E Testing |
-|----------|-------|-------------------|-------------|
-| lvcreate | Alpha | Thin              | Basic       |
-| lvremove | Alpha | Thin              | Basic       |
-| lvextend | Alpha | Extents & Sizes   | Basic       |
-| lvchange | Alpha | (De-)Activation   | Basic       |
-| lvrename | Alpha |                   | Basic       |
-| lvs      | Alpha |                   | Basic       |
-| vgcreate | Alpha |                   | Basic       |
-| vgremove | Alpha |                   | Basic       |
-| vgs      | Alpha |                   | Basic       |
-| pvs      | Alpha |                   | Basic       |
-| version  | Alpha |                   | Basic       |
+| Command    | State | E2E Testing | Special Use Cases |
+|------------|-------|-------------|-------------------|
+| lvcreate   | Alpha | Basic       | Thin              |
+| lvremove   | Alpha | Basic       | Thin              |
+| lvextend   | Alpha | Basic       | Extents & Sizes   |
+| lvchange   | Alpha | Basic       | (De-)Activation   |
+| lvrename   | Alpha | Basic       |                   |
+| lvs        | Alpha | Basic       |                   |
+| vgcreate   | Alpha | Basic       |                   |
+| vgremove   | Alpha | Basic       |                   |
+| vgs        | Alpha | Basic       |                   |
+| pvs        | Alpha | Basic       |                   |
+| lvmdevices | Alpha | Basic       |                   |
+| version    | Alpha | Basic       |                   |
