@@ -98,6 +98,15 @@ func (opt Size) MarshalText() ([]byte, error) {
 	return []byte(opt.String()), nil
 }
 
+func (opt Size) ToExtents(extentSize uint64, percent ExtentPercent) (Extents, error) {
+	bytes, err := opt.ToUnit(UnitBytes)
+	if err != nil {
+		return Extents{}, err
+	}
+	extents := uint64(math.Ceil(bytes.Val / float64(extentSize)))
+	return NewExtents(extents, percent), nil
+}
+
 var conversionTable = map[Unit]float64{
 	UnitBytes: 0,
 	UnitKiB:   1,

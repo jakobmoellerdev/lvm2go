@@ -187,6 +187,8 @@ func (lv TestLogicalVolume) Size() Size {
 		switch topt := opt.(type) {
 		case Size:
 			return topt
+		case Extents:
+			return topt.ToSize(TestExtentBytes)
 		}
 	}
 	return Size{}

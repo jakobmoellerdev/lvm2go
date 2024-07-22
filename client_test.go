@@ -2,6 +2,7 @@ package lvm2go
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"testing"
 )
@@ -11,7 +12,7 @@ func TestLVs(t *testing.T) {
 	ctx := WithCustomEnvironment(context.Background(), map[string]string{})
 	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
-	for _, tc := range []test{
+	for i, tc := range []test{
 		{
 			LoopDevices: []Size{
 				MustParseSize("10M"),
@@ -59,7 +60,7 @@ func TestLVs(t *testing.T) {
 			},
 		},
 	} {
-		t.Run(tc.String(), func(t *testing.T) {
+		t.Run(fmt.Sprintf("[%v]%s", i, tc.String()), func(t *testing.T) {
 			FailTestIfNotRoot(t)
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()

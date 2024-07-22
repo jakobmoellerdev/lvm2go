@@ -121,6 +121,10 @@ func (opt Extents) Validate() error {
 	return nil
 }
 
+func (opt Extents) ToSize(extentSize uint64) Size {
+	return NewSize(float64(opt.Val*extentSize), UnitBytes)
+}
+
 func (opt Extents) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.Extents = opt
 }
