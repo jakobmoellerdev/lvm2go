@@ -97,6 +97,10 @@ func (opt LogicalVolumeName) ApplyToLVRenameOptions(opts *LVRenameOptions) {
 	opts.SetOldOrNew(opt)
 }
 
+func (opt LogicalVolumeName) ApplyToLVExtendOptions(opts *LVExtendOptions) {
+	opts.LogicalVolumeName = opt
+}
+
 func (opt LogicalVolumeName) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.LogicalVolumeName = opt
 }

@@ -52,6 +52,10 @@ func (opt VolumeGroupName) ApplyToLVRenameOptions(opts *LVRenameOptions) {
 func (opt VolumeGroupName) ApplyToLVChangeOptions(opts *LVChangeOptions) {
 	opts.VolumeGroupName = opt
 }
+
+func (opt VolumeGroupName) ApplyToLVExtendOptions(opts *LVExtendOptions) {
+	opts.VolumeGroupName = opt
+}
 func (opt VolumeGroupName) ApplyToVGsOptions(opts *VGsOptions) {
 	opts.VolumeGroupName = opt
 }

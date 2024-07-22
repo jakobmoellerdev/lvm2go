@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var ErrInvalidExtentsGTZero = errors.New("invalid extents specified, must be set")
@@ -20,13 +21,13 @@ type ExtentPercent string
 
 const (
 	// ExtentPercentFree determines percentage of remaining free space in the VG
-	ExtentPercentFree ExtentPercent = "FREE"
+	ExtentPercentFree ExtentPercent = ExtentPercentSymbol + "FREE"
 	// ExtentPercentOrigin determines percentage of the total size of the origin LV
-	ExtentPercentOrigin ExtentPercent = "ORIGIN"
+	ExtentPercentOrigin ExtentPercent = ExtentPercentSymbol + "ORIGIN"
 	// ExtentPercentPVS determines percentage of the total size of the specified PVs
-	ExtentPercentPVS ExtentPercent = "PVS"
+	ExtentPercentPVS ExtentPercent = ExtentPercentSymbol + "PVS"
 	// ExtentPercentVG determines percentage of the total size of the VG
-	ExtentPercentVG ExtentPercent = "VG"
+	ExtentPercentVG ExtentPercent = ExtentPercentSymbol + "VG"
 )
 
 var percentCandidates = []ExtentPercent{
@@ -74,8 +75,8 @@ func ParseExtents(extents string) (Extents, error) {
 		return e, ErrInvalidMultiplePercent
 	}
 	if pidx > 0 {
-		percent := extents[pidx+1:]
-		if percent == "" || !slices.Contains(percentCandidates, ExtentPercent(percent)) {
+		percent := extents[pidx:]
+		if !slices.Contains(percentCandidates, ExtentPercent(percent)) {
 			return e, ErrInvalidPercentDefinition
 		}
 
@@ -98,11 +99,14 @@ func (opt Extents) ApplyToArgs(args Arguments) error {
 	if err := opt.Validate(); err != nil {
 		return err
 	}
+	if opt.Val == 0 {
+		return nil
+	}
 
-	args.AddOrReplace("--extents", fmt.Sprintf("%s%s",
+	args.AddOrReplace(fmt.Sprintf("--extents=%s%s",
 		strconv.FormatUint(opt.Val, 10),
 		map[bool]string{
-			true:  fmt.Sprintf("%s%s", ExtentPercentSymbol, opt.ExtentPercent),
+			true:  string(opt.ExtentPercent),
 			false: "",
 		}[len(opt.ExtentPercent) > 0],
 	))
@@ -143,6 +147,15 @@ func MustParsePrefixedExtents(str string) PrefixedExtents {
 
 func ParsePrefixedExtents(str string) (PrefixedExtents, error) {
 	prefix := SizePrefix(str[0])
+
+	if unicode.IsDigit(rune(prefix)) {
+		extents, err := ParseExtents(str)
+		if err != nil {
+			return PrefixedExtents{}, err
+		}
+		return NewPrefixedExtents(SizePrefixNone, extents), nil
+	}
+
 	if !slices.Contains(prefixCandidates, prefix) {
 		return PrefixedExtents{}, ErrInvalidSizePrefix
 	}
@@ -160,7 +173,7 @@ func (opt PrefixedExtents) Validate() error {
 		return err
 	}
 
-	if !slices.Contains(prefixCandidates, opt.SizePrefix) {
+	if opt.SizePrefix != SizePrefixNone && !slices.Contains(prefixCandidates, opt.SizePrefix) {
 		return ErrInvalidSizePrefix
 	}
 
@@ -171,15 +184,25 @@ func (opt PrefixedExtents) ApplyToArgs(args Arguments) error {
 	if err := opt.Validate(); err != nil {
 		return err
 	}
+	if opt.Val == 0 {
+		return nil
+	}
 
-	args.AddOrReplace("--extents", fmt.Sprintf("%s%s%s",
-		string(opt.SizePrefix),
+	args.AddOrReplace(fmt.Sprintf("--extents=%s%s%s",
+		map[bool]string{
+			true:  string(opt.SizePrefix),
+			false: "",
+		}[opt.SizePrefix != SizePrefixNone],
 		strconv.FormatUint(opt.Val, 10),
 		map[bool]string{
-			true:  fmt.Sprintf("%s%s", ExtentPercentSymbol, opt.ExtentPercent),
+			true:  string(opt.ExtentPercent),
 			false: "",
 		}[len(opt.ExtentPercent) > 0],
 	))
 
 	return nil
+}
+
+func (opt PrefixedExtents) ApplyToLVExtendOptions(opts *LVExtendOptions) {
+	opts.PrefixedExtents = opt
 }

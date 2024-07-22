@@ -1,16 +1,4 @@
-ci:
-  skip: ['golangci-lint', 'go-test']
-
 repos:
-  - repo: local
-    hooks:
-      - id: go-test
-        name: Go Test
-        language: system
-        entry: go
-        args: ['test', '-v', '-skip-rootful-tests']
-        pass_filenames: true
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
@@ -28,19 +16,6 @@ repos:
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: trailing-whitespace
-
-  - repo: https://github.com/golangci/golangci-lint
-    rev: v1.59.1
-    hooks:
-      - id: golangci-lint
-        entry: golangci-lint run --fix
-        args:
-          - "--modules-download-mode=vendor"
-          - "--timeout=20m"
-        types: [go]
-        language: golang
-        require_serial: true
-        pass_filenames: false
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:

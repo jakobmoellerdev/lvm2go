@@ -33,7 +33,7 @@ func GetLVMPath() string {
 
 var resolveLVMPathFromHost = sync.OnceValue(func() string {
 	if path, err := exec.LookPath("lvm"); err != nil {
-		return "/sbin/lvm"
+		return "/usr/sbin/lvm"
 	} else {
 		return path
 	}

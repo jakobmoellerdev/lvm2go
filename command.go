@@ -20,7 +20,7 @@ var waitDelayKey = struct{}{}
 // DefaultWaitDelay for Commands
 // If WaitDelay is zero (the default), I/ O pipes will be read until EOF, which might not occur until orphaned subprocesses of the command have also closed their descriptors for the pipes
 // see exec.Cmd.Wait for more information
-var DefaultWaitDelay = 10 * time.Second
+var DefaultWaitDelay = time.Duration(0)
 
 func SetProcessCancelWaitDelay(ctx context.Context, delay time.Duration) context.Context {
 	return context.WithValue(ctx, waitDelayKey, delay)

@@ -2,6 +2,7 @@ package lvm2go
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -9,7 +10,7 @@ import (
 	"unicode"
 )
 
-var ErrInvalidSizeGTZero = errors.New("invalid size specified, must be set")
+var ErrInvalidSizeGEZero = errors.New("invalid size specified, must be greater than or equal to zero")
 
 var ErrInvalidUnit = errors.New("invalid unit specified")
 var ErrInvalidSizePrefix = errors.New("invalid size prefix specified")
@@ -17,6 +18,7 @@ var ErrInvalidSizePrefix = errors.New("invalid size prefix specified")
 type SizePrefix rune
 
 const (
+	SizePrefixNone  SizePrefix = 0
 	SizePrefixMinus SizePrefix = '-'
 	SizePrefixPlus  SizePrefix = '+'
 )
@@ -58,7 +60,7 @@ const (
 	UnitSector       Unit = 's'
 	// UnitUnknown is used to represent the output unit when
 	// LVs or VGs are queried without specifying a unit. (--nosuffix)
-	UnitUnknown Unit = 'X'
+	UnitUnknown Unit = 0
 )
 
 var validUnits = []Unit{UnitBytes, UnitKiB, UnitMiB, UnitGiB, UnitTiB, UnitPiB, UnitEiB, UnitSector, UnitUnknown}
@@ -219,8 +221,8 @@ func NewSize(value float64, unit Unit) Size {
 }
 
 func (opt Size) Validate() error {
-	if opt.Val <= 0 {
-		return ErrInvalidSizeGTZero
+	if opt.Val < 0 {
+		return ErrInvalidSizeGEZero
 	}
 
 	if !IsValidUnit(opt.Unit) {
@@ -247,7 +249,7 @@ func (opt Size) applyToArgs(arg string, args Arguments) error {
 		return err
 	}
 
-	args.AddOrReplaceAll([]string{arg, opt.String()})
+	args.AddOrReplace(fmt.Sprintf("%s=%s", arg, opt.String()))
 
 	return nil
 }
@@ -275,6 +277,15 @@ func ParsePrefixedSize(str string) (PrefixedSize, error) {
 	}
 
 	prefix := SizePrefix(str[0])
+
+	if unicode.IsDigit(rune(prefix)) {
+		size, err := ParseSize(str)
+		if err != nil {
+			return PrefixedSize{}, err
+		}
+		return NewPrefixedSize(SizePrefixNone, size), nil
+	}
+
 	if !slices.Contains(prefixCandidates, prefix) {
 		return PrefixedSize{}, ErrInvalidSizePrefix
 	}
@@ -314,6 +325,9 @@ func (opt PrefixedSize) applyToArgs(arg string, args Arguments) error {
 	if err := opt.Validate(); err != nil {
 		return err
 	}
+	if opt.Val == 0 {
+		return nil
+	}
 
 	var sizeBuilder strings.Builder
 	if opt.SizePrefix != 0 {
@@ -321,12 +335,16 @@ func (opt PrefixedSize) applyToArgs(arg string, args Arguments) error {
 	}
 	sizeBuilder.WriteString(opt.Size.String())
 
-	args.AddOrReplaceAll([]string{arg, sizeBuilder.String()})
+	args.AddOrReplace(fmt.Sprintf("%s=%s", arg, sizeBuilder.String()))
 
 	return nil
 }
 
 func (opt PrefixedSize) ApplyToLVResizeOptions(opts *LVResizeOptions) {
+	opts.PrefixedSize = opt
+}
+
+func (opt PrefixedSize) ApplyToLVExtendOptions(opts *LVExtendOptions) {
 	opts.PrefixedSize = opt
 }
 

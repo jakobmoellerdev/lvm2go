@@ -178,7 +178,7 @@ func Test_Size(t *testing.T) {
 			size Size
 			err  error
 		}{
-			{Size{Val: 0, Unit: UnitUnknown}, ErrInvalidSizeGTZero},
+			{Size{Val: 0, Unit: UnitUnknown}, ErrInvalidSizeGEZero},
 			{Size{Val: 1, Unit: '/'}, ErrInvalidUnit},
 			{Size{Val: 1, Unit: UnitUnknown}, nil},
 		} {
@@ -259,11 +259,12 @@ func Test_Size(t *testing.T) {
 		}
 
 		tcs := []applyToArgsTestCase{
-			{Size{Val: 0, Unit: UnitUnknown}, nil, ErrInvalidSizeGTZero},
-			{Size{Val: 1, Unit: UnitUnknown}, strings.Split("--size 1.00", " "), nil},
-			{Size{Val: 1, Unit: UnitGiB}, strings.Split("--size 1.00g", " "), nil},
-			{Size{Val: 1, Unit: UnitBytes}, strings.Split("--size 1b", " "), nil},
-			{Size{Val: 1.555, Unit: UnitGiB}, strings.Split("--size 1.55g", " "), nil},
+			{Size{Val: -1, Unit: UnitUnknown}, nil, ErrInvalidSizeGEZero},
+			{Size{Val: 0, Unit: UnitUnknown}, strings.Split("--size=0.00", " "), nil},
+			{Size{Val: 1, Unit: UnitUnknown}, strings.Split("--size=1.00", " "), nil},
+			{Size{Val: 1, Unit: UnitGiB}, strings.Split("--size=1.00g", " "), nil},
+			{Size{Val: 1, Unit: UnitBytes}, strings.Split("--size=1b", " "), nil},
+			{Size{Val: 1.555, Unit: UnitGiB}, strings.Split("--size=1.55g", " "), nil},
 		}
 
 		for _, tc := range tcs {
@@ -287,11 +288,11 @@ func Test_Size(t *testing.T) {
 			expected []string
 			err      error
 		}{
-			{PrefixedSize{SizePrefix: SizePrefixPlus, Size: Size{Val: 0, Unit: UnitUnknown}}, nil, ErrInvalidSizeGTZero},
-			{PrefixedSize{SizePrefix: SizePrefixPlus, Size: Size{Val: 1, Unit: UnitUnknown}}, strings.Split("--size +1.00", " "), nil},
-			{PrefixedSize{SizePrefix: SizePrefixPlus, Size: Size{Val: 1, Unit: UnitBytes}}, strings.Split("--size +1b", " "), nil},
-			{PrefixedSize{SizePrefix: SizePrefixPlus, Size: Size{Val: 1, Unit: UnitGiB}}, strings.Split("--size +1.00g", " "), nil},
-			{PrefixedSize{SizePrefix: SizePrefixMinus, Size: Size{Val: 1, Unit: UnitGiB}}, strings.Split("--size -1.00g", " "), nil},
+			{PrefixedSize{SizePrefix: SizePrefixPlus, Size: Size{Val: 0, Unit: UnitUnknown}}, nil, ErrInvalidSizeGEZero},
+			{PrefixedSize{SizePrefix: SizePrefixPlus, Size: Size{Val: 1, Unit: UnitUnknown}}, strings.Split("--size=+1.00", " "), nil},
+			{PrefixedSize{SizePrefix: SizePrefixPlus, Size: Size{Val: 1, Unit: UnitBytes}}, strings.Split("--size=+1b", " "), nil},
+			{PrefixedSize{SizePrefix: SizePrefixPlus, Size: Size{Val: 1, Unit: UnitGiB}}, strings.Split("--size=+1.00g", " "), nil},
+			{PrefixedSize{SizePrefix: SizePrefixMinus, Size: Size{Val: 1, Unit: UnitGiB}}, strings.Split("--size=-1.00g", " "), nil},
 		} {
 			t.Run(tc.size.String(), func(t *testing.T) {
 				args := NewArgs(ArgsTypeGeneric)

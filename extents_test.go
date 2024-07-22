@@ -164,8 +164,8 @@ func Test_Extents(t *testing.T) {
 		if err := extents.ApplyToArgs(args); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		if !reflect.DeepEqual(args.GetRaw(), []string{"--extents", "1%ORIGIN"}) {
-			t.Errorf("unexpected args: %v", args.GetRaw())
+		if act, exp := args.GetRaw(), "--extents=1%ORIGIN"; len(act) != 1 || act[0] != exp {
+			t.Errorf("unexpected args: expected %s but got %s(%v)", exp, act, len(act))
 		}
 	})
 
@@ -175,8 +175,8 @@ func Test_Extents(t *testing.T) {
 		if err := extents.ApplyToArgs(args); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		if !reflect.DeepEqual(args.GetRaw(), []string{"--extents", "+1%ORIGIN"}) {
-			t.Errorf("unexpected args: %v", args.GetRaw())
+		if act, exp := args.GetRaw(), "--extents=+1%ORIGIN"; len(act) != 1 || act[0] != exp {
+			t.Errorf("unexpected args: expected %s but got %s(%v)", exp, act, len(act))
 		}
 	})
 

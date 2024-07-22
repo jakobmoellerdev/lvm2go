@@ -12,8 +12,8 @@ type (
 		LogicalVolumeName
 
 		PoolMetadataPrefixedSize
-		Size
-		Extents
+		PrefixedSize
+		PrefixedExtents
 
 		CommonOptions
 	}
@@ -61,21 +61,29 @@ func (opts *LVExtendOptions) ApplyToArgs(args Arguments) error {
 		return err
 	}
 
-	if opts.Extents.Val > 0 && opts.Size.Val > 0 {
+	if opts.Extents.Val > 0 && opts.PrefixedSize.Val > 0 {
 		return fmt.Errorf("size and extents are mutually exclusive")
-	} else if opts.Extents.Val <= 0 && opts.Size.Val <= 0 {
+	} else if opts.Extents.Val <= 0 && opts.PrefixedSize.Val <= 0 {
 		return fmt.Errorf("size or extents must be specified")
 	}
 
-	if opts.PoolMetadataPrefixedSize.Val == 0 && opts.Size.Val == 0 && opts.Extents.Val == 0 {
+	if opts.PrefixedSize.SizePrefix == SizePrefixMinus {
+		return fmt.Errorf("size prefix must be positive")
+	} else if opts.PrefixedExtents.SizePrefix == SizePrefixMinus {
+		return fmt.Errorf("extents prefix must be positive")
+	} else if opts.PoolMetadataPrefixedSize.SizePrefix == SizePrefixMinus {
+		return fmt.Errorf("pool metadata size prefix must be positive")
+	}
+
+	if opts.PoolMetadataPrefixedSize.Val == 0 && opts.PrefixedSize.Val == 0 && opts.Extents.Val == 0 {
 		return errors.New("PoolMetadataPrefixedSize, Size or Extents is required")
 	}
 
 	for _, arg := range []Argument{
 		id,
-		opts.Size,
+		opts.PrefixedSize,
+		opts.PrefixedExtents,
 		opts.PoolMetadataPrefixedSize,
-		opts.Extents,
 		opts.CommonOptions,
 	} {
 		if err := arg.ApplyToArgs(args); err != nil {

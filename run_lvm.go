@@ -19,7 +19,11 @@ func (c *client) RunLVM(ctx context.Context, args ...string) error {
 // RunLVMInto calls lvm2 sub-commands and decodes the output via JSON into the provided struct pointer.
 // if the struct pointer is nil, the output will be printed to the log instead.
 func (c *client) RunLVMInto(ctx context.Context, into any, args ...string) error {
-	output, err := StreamedCommand(ctx, CommandContext(ctx, GetLVMPath(), args...))
+	cmd := CommandContext(ctx, GetLVMPath(), args...)
+
+	slog.DebugContext(ctx, "running command", slog.String("command", strings.Join(cmd.Args, " ")))
+
+	output, err := StreamedCommand(ctx, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to execute command: %v", err)
 	}
@@ -70,7 +74,11 @@ func (c *client) RunRaw(ctx context.Context, process RawOutputProcessor, args ..
 	if len(args) == 0 {
 		return fmt.Errorf("no command provided")
 	}
-	output, err := StreamedCommand(ctx, CommandContext(ctx, args[0], args[1:]...))
+	cmd := CommandContext(ctx, args[0], args[1:]...)
+
+	slog.DebugContext(ctx, "running command", slog.String("command", strings.Join(cmd.Args, " ")))
+
+	output, err := StreamedCommand(ctx, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to execute command: %v", err)
 	}
