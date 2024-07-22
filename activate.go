@@ -14,7 +14,6 @@ func (opt ActivationState) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 
 func (opt ActivationState) ApplyToLVChangeOptions(opts *LVChangeOptions) {
 	opts.ActivationState = opt
-
 }
 
 func (opt ActivationState) ApplyToArgs(args Arguments) error {

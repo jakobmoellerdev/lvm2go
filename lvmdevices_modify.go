@@ -3,6 +3,7 @@ package lvm2go
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 var ErrNoDevicesSpecifiedForModification = errors.New("no devices specified for modification")
@@ -57,7 +58,7 @@ func (opt ModifyDevice) ApplyToArgs(args Arguments) error {
 	if len(opt.Device) == 0 {
 		return nil
 	}
-	args.AddOrReplaceAll([]string{string(opt.ModifyDeviceType), opt.Device})
+	args.AddOrReplaceAll([]string{fmt.Sprintf("--%s", string(opt.ModifyDeviceType)), opt.Device})
 	return nil
 }
 

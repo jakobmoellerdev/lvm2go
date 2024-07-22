@@ -10,14 +10,6 @@ import (
 
 type DeviceList []DeviceListEntry
 
-func (opt DeviceList) ToDevices() Devices {
-	var devices Devices
-	for _, entry := range opt {
-		devices = append(devices, entry.Device)
-	}
-	return devices
-}
-
 type DeviceIDType string
 
 const (
@@ -47,7 +39,6 @@ func (opt DeviceIDType) ApplyToArgs(args Arguments) error {
 }
 
 type DeviceListEntry struct {
-	Device  string       `json:"device"`
 	IDType  DeviceIDType `json:"id_type"`
 	IDName  string       `json:"id_name"`
 	DevName string       `json:"dev_name"`
@@ -80,21 +71,40 @@ func (c *client) DevList(ctx context.Context, opts ...DevListOption) ([]DeviceLi
 		scanner := bufio.NewScanner(line)
 		for scanner.Scan() {
 			fields := strings.Fields(strings.TrimSpace(scanner.Text()))
-			if len(fields) < 5 {
-				return fmt.Errorf("invalid device list line: %q", scanner.Text())
+			if fields[0] != "Device" {
+				return fmt.Errorf("invalid device list header: %q", scanner.Text())
 			}
-			devList = append(devList, DeviceListEntry{
-				Device:  fields[0],
-				IDType:  DeviceIDType(fields[1]),
-				IDName:  fields[2],
-				DevName: fields[3],
-				PVID:    fields[4],
-			})
+			dev := fields[1]
+			kvs := make(map[string]string, len(fields)-2)
+			for _, field := range fields[2:] {
+				kv := strings.Split(field, "=")
+				if len(kv) != 2 {
+					return fmt.Errorf("invalid device list field: %q", field)
+				}
+				kvs[kv[0]] = kv[1]
+			}
+			entry := DeviceListEntry{}
+			for k, v := range kvs {
+				switch k {
+				case "IDTYPE":
+					entry.IDType = DeviceIDType(v)
+				case "IDNAME":
+					entry.IDName = v
+				case "DEVNAME":
+					if dev != v {
+						return fmt.Errorf("invalid device list entry: %q", scanner.Text())
+					}
+					entry.DevName = v
+				case "PVID":
+					entry.PVID = v
+				}
+			}
+			devList = append(devList, entry)
 		}
 		return scanner.Err()
 	})
 
-	if err := c.RunLVMRaw(ctx, devListProcessor, append([]string{"version"}, args.GetRaw()...)...); err != nil {
+	if err := c.RunLVMRaw(ctx, devListProcessor, append([]string{"lvmdevices"}, args.GetRaw()...)...); err != nil {
 		return nil, fmt.Errorf("failed to get version: %v", err)
 	}
 

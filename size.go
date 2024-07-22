@@ -30,6 +30,7 @@ const (
 	sizeArg             = "--size"
 	poolMetadataSizeArg = "--poolmetadatasize"
 	virtualSizeArg      = "--virtualsize"
+	chunkSizeArg        = "--chunksize"
 )
 
 type Unit rune
@@ -370,4 +371,14 @@ type VirtualPrefixedSize PrefixedSize
 
 func (opt VirtualPrefixedSize) ApplyToArgs(args Arguments) error {
 	return PrefixedSize(opt).applyToArgs(virtualSizeArg, args)
+}
+
+type ChunkSize Size
+
+func (opt ChunkSize) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+	opts.ChunkSize = opt
+}
+
+func (opt ChunkSize) ApplyToArgs(args Arguments) error {
+	return Size(opt).applyToArgs(chunkSizeArg, args)
 }

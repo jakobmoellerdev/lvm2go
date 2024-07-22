@@ -1,14 +1,8 @@
 package lvm2go
 
 import (
-	"errors"
-	"fmt"
-	"os"
 	"strings"
 )
-
-var ErrEmptyDevicesFile = errors.New("devices file cannot be empty to be validated")
-var ErrDevicesFileCannotBeDir = errors.New("devices file cannot be a directory")
 
 type Devices []string
 
@@ -121,25 +115,6 @@ func (opt DevicesFile) ApplyToArgs(args Arguments) error {
 	if opt == "" {
 		return nil
 	}
-	if err := opt.Validate(); err != nil {
-		return err
-	}
 	args.AddOrReplaceAll([]string{"--devicesfile", string(opt)})
-	return nil
-}
-
-func (opt DevicesFile) Validate() error {
-	if opt == "" {
-		return fmt.Errorf("%q is empty: %w", opt, ErrEmptyDevicesFile)
-	}
-
-	fi, err := os.Stat(string(opt))
-	if err != nil {
-		return fmt.Errorf("%q is not a valid devices file: %w", opt, err)
-	}
-	if fi.IsDir() {
-		return fmt.Errorf("%q is a directory: %w", opt, ErrDevicesFileCannotBeDir)
-	}
-
 	return nil
 }
