@@ -93,6 +93,10 @@ func (lv *LogicalVolume) GetFQLogicalVolumeName() (*FQLogicalVolumeName, error) 
 
 type LogicalVolumeName string
 
+func (opt LogicalVolumeName) ApplyToLVRenameOptions(opts *LVRenameOptions) {
+	opts.SetOldOrNew(opt)
+}
+
 func (opt LogicalVolumeName) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.LogicalVolumeName = opt
 }
@@ -189,8 +193,8 @@ func (opt LogicalVolumeName) ApplyToArgs(args Arguments) error {
 	switch args.GetType() {
 	case ArgsTypeLVRename:
 		args.AddOrReplace(string(opt))
+	default:
+		args.AddOrReplace(fmt.Sprintf("--name=%s", string(opt)))
 	}
-
-	args.AddOrReplace(fmt.Sprintf("--name=%s", string(opt)))
 	return nil
 }

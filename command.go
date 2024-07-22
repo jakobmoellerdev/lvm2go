@@ -17,7 +17,10 @@ const (
 
 var waitDelayKey = struct{}{}
 
-var DefaultWaitDelay = time.Duration(0)
+// DefaultWaitDelay for Commands
+// If WaitDelay is zero (the default), I/ O pipes will be read until EOF, which might not occur until orphaned subprocesses of the command have also closed their descriptors for the pipes
+// see exec.Cmd.Wait for more information
+var DefaultWaitDelay = 10 * time.Second
 
 func SetProcessCancelWaitDelay(ctx context.Context, delay time.Duration) context.Context {
 	return context.WithValue(ctx, waitDelayKey, delay)
@@ -107,4 +110,21 @@ func CommandWithCustomEnvironment(ctx context.Context, cmd *exec.Cmd) *exec.Cmd 
 		cmd.Env = os.Environ()
 	}
 	return cmd
+}
+
+var (
+	useStandardLocale   bool
+	useStandardLocaleMu sync.Mutex
+)
+
+func UseStandardLocale() bool {
+	useStandardLocaleMu.Lock()
+	defer useStandardLocaleMu.Unlock()
+	return useStandardLocale
+}
+
+func SetUseStandardLocale(use bool) {
+	useStandardLocaleMu.Lock()
+	defer useStandardLocaleMu.Unlock()
+	useStandardLocale = use
 }

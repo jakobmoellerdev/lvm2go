@@ -2,7 +2,6 @@ package lvm2go
 
 import (
 	"context"
-	"fmt"
 )
 
 type (
@@ -37,26 +36,17 @@ func (c *client) LVRemove(ctx context.Context, opts ...LVRemoveOption) error {
 }
 
 func (opts *LVRemoveOptions) ApplyToArgs(args Arguments) error {
-	if opts.LogicalVolumeName == "" {
-		return fmt.Errorf("LogicalVolumeName is required for removal of a logical volume")
-	}
-
-	if opts.VolumeGroupName == "" {
-		return fmt.Errorf("VolumeGroupName is required for removal of a logical volume")
-	}
-
-	var identifier []Argument
-	fq, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
+	id, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
 	if err != nil {
 		return err
 	}
-	identifier = []Argument{fq}
 
-	for _, arg := range append(identifier,
+	for _, arg := range []Argument{
+		id,
 		opts.Tags,
 		opts.Force,
 		opts.CommonOptions,
-	) {
+	} {
 		if err := arg.ApplyToArgs(args); err != nil {
 			return err
 		}

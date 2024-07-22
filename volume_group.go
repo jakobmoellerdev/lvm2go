@@ -46,6 +46,9 @@ var _ Argument = VolumeGroupName("")
 func (opt VolumeGroupName) ApplyToLVsOptions(opts *LVsOptions) {
 	opts.VolumeGroupName = opt
 }
+func (opt VolumeGroupName) ApplyToLVRenameOptions(opts *LVRenameOptions) {
+	opts.VolumeGroupName = opt
+}
 func (opt VolumeGroupName) ApplyToLVChangeOptions(opts *LVChangeOptions) {
 	opts.VolumeGroupName = opt
 }

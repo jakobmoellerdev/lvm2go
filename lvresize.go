@@ -2,7 +2,6 @@ package lvm2go
 
 import (
 	"context"
-	"fmt"
 )
 
 type (
@@ -47,27 +46,16 @@ func (list LVResizeOptionsList) AsArgs() (Arguments, error) {
 }
 
 func (opts *LVResizeOptions) ApplyToArgs(args Arguments) error {
-	if opts.LogicalVolumeName == "" {
-		return fmt.Errorf("LogicalVolumeName or ThinPoolName is required for creation of a logical volume")
-	}
-
-	if opts.VolumeGroupName == "" {
-		return fmt.Errorf("VolumeGroupName is required for creation of a logical volume")
-	}
-
-	var identifier []Argument
-
-	fq, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
+	id, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
 	if err != nil {
 		return err
 	}
-	identifier = []Argument{fq}
 
-	for _, opt := range append(
-		identifier,
+	for _, opt := range []Argument{
+		id,
 		opts.PrefixedSize,
 		opts.CommonOptions,
-	) {
+	} {
 		if err := opt.ApplyToArgs(args); err != nil {
 			return err
 		}

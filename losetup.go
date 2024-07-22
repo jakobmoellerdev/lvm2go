@@ -279,7 +279,7 @@ func (dev *loopbackDevice) SetBackingFile(file string) error {
 	if _, err := os.Stat(dev.file); err == nil {
 		return fmt.Errorf("backing file %s already exists", dev.file)
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to check for backing file existance %s: %w", dev.file, err)
+		return fmt.Errorf("failed to check for backing file existence %s: %w", dev.file, err)
 	}
 
 	args := []string{fmt.Sprintf("--size=%v", uint64(dev.size.Val)), dev.file}

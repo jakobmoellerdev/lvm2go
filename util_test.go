@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"hash"
 	"hash/fnv"
@@ -25,9 +26,15 @@ var sharedTestClient Client
 var sharedTestClientOnce sync.Once
 var sharedTestClientKey = struct{}{}
 
+var skipRootfulTests = flag.Bool("skip-rootful-tests", false, "Name of location to greet")
+
 func FailTestIfNotRoot(t *testing.T) {
 	if os.Geteuid() != 0 {
-		t.Fatalf("Failing test because it requires root privileges to setup its environment.")
+		if *skipRootfulTests {
+			t.Skip("Skipping test because it requires root privileges to setup its environment.")
+		} else {
+			t.Fatalf("Failing test because it requires root privileges to setup its environment.")
+		}
 	}
 }
 
@@ -167,9 +174,9 @@ type TestLogicalVolume struct {
 
 func (lv TestLogicalVolume) LogicalVolumeName() LogicalVolumeName {
 	for _, opt := range lv.Options {
-		switch opt.(type) {
+		switch topt := opt.(type) {
 		case LogicalVolumeName:
-			return opt.(LogicalVolumeName)
+			return topt
 		}
 	}
 	return ""
@@ -177,9 +184,9 @@ func (lv TestLogicalVolume) LogicalVolumeName() LogicalVolumeName {
 
 func (lv TestLogicalVolume) Size() Size {
 	for _, opt := range lv.Options {
-		switch opt.(type) {
+		switch topt := opt.(type) {
 		case Size:
-			return opt.(Size)
+			return topt
 		}
 	}
 	return Size{}
@@ -187,9 +194,9 @@ func (lv TestLogicalVolume) Size() Size {
 
 func (lv TestLogicalVolume) Extents() Extents {
 	for _, opt := range lv.Options {
-		switch opt.(type) {
+		switch topt := opt.(type) {
 		case Extents:
-			return opt.(Extents)
+			return topt
 		}
 	}
 	return Extents{}
@@ -232,7 +239,11 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) Test
 	}
 	vg.t.Cleanup(func() {
 		if err := c.LVRemove(ctx, vg.Name, logicalVolumeName); err != nil {
-			vg.t.Fatal(err)
+			if IsLVMNotFound(err) {
+				vg.t.Logf("logical volume %s not found, skipping removal", logicalVolumeName)
+			} else {
+				vg.t.Fatal(err)
+			}
 		}
 	})
 	return TestLogicalVolume{

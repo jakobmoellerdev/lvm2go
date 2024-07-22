@@ -2,7 +2,7 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
+	"fmt"
 )
 
 type (
@@ -55,15 +55,19 @@ func (list LVRenameOptionsList) AsArgs() (Arguments, error) {
 	return args, nil
 }
 
+func (opts *LVRenameOptions) ApplyToLVRenameOptions(other *LVRenameOptions) {
+	*other = *opts
+}
+
 func (opts *LVRenameOptions) ApplyToArgs(args Arguments) error {
 	if opts.VolumeGroupName == "" {
-		return errors.New("VolumeGroupName is required")
+		return ErrVolumeGroupNameRequired
 	}
 	if opts.Old == "" {
-		return errors.New("old LogicalVolumeName is required")
+		return fmt.Errorf("old is empty: %w", ErrLogicalVolumeNameRequired)
 	}
 	if opts.New == "" {
-		return errors.New("new LogicalVolumeName is required")
+		return fmt.Errorf("new is empty: %w", ErrLogicalVolumeNameRequired)
 	}
 
 	for _, arg := range []Argument{

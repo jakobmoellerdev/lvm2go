@@ -4,15 +4,7 @@ import (
 	"context"
 )
 
-type ClientOption interface {
-	ApplyToClientOptions(opts *clientOptions)
-}
-
-type clientOptions struct{}
-
-type client struct {
-	opts clientOptions
-}
+type client struct{}
 
 var _ Client = (*client)(nil)
 

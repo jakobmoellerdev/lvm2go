@@ -58,7 +58,7 @@ func NewTestingHandler(tb testing.TB) slog.Handler {
 }
 
 func (h TestingHandler) Enabled(_ context.Context, l slog.Level) bool {
-	return h.tb.Skipped() == false
+	return !h.tb.Skipped()
 }
 
 func (h TestingHandler) Handle(_ context.Context, record slog.Record) error {

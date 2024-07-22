@@ -69,7 +69,7 @@ func (list LVCreateOptionList) AsArgs() (Arguments, error) {
 
 func (opts *LVCreateOptions) ApplyToArgs(args Arguments) error {
 	if opts.LogicalVolumeName == "" {
-		return fmt.Errorf("LogicalVolumeName or ThinPoolName is required for creation of a logical volume")
+		return ErrLogicalVolumeNameRequired
 	}
 
 	if opts.Extents.Val > 0 && opts.Size.Val > 0 && opts.VirtualSize.Val > 0 {

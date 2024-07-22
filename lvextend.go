@@ -56,11 +56,9 @@ func (list LVExtendOptionsList) AsArgs() (Arguments, error) {
 }
 
 func (opts *LVExtendOptions) ApplyToArgs(args Arguments) error {
-	if opts.VolumeGroupName == "" {
-		return errors.New("VolumeGroupName is required")
-	}
-	if opts.LogicalVolumeName == "" {
-		return errors.New("LogicalVolumeName is required")
+	id, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
+	if err != nil {
+		return err
 	}
 
 	if opts.Extents.Val > 0 && opts.Size.Val > 0 {
@@ -73,13 +71,8 @@ func (opts *LVExtendOptions) ApplyToArgs(args Arguments) error {
 		return errors.New("PoolMetadataPrefixedSize, Size or Extents is required")
 	}
 
-	fqLogicalVolumeName, err := NewFQLogicalVolumeName(opts.VolumeGroupName, opts.LogicalVolumeName)
-	if err != nil {
-		return err
-	}
-
 	for _, arg := range []Argument{
-		fqLogicalVolumeName,
+		id,
 		opts.Size,
 		opts.PoolMetadataPrefixedSize,
 		opts.Extents,

@@ -69,10 +69,7 @@ func IsValidUnit(unit Unit) bool {
 			return true
 		}
 	}
-	if unicode.IsDigit(rune(unit)) {
-		return true
-	}
-	return false
+	return unicode.IsDigit(rune(unit))
 }
 
 // Size is an InputToParse number that accepts an optional unit.
@@ -166,18 +163,6 @@ func (opt Size) ToUnit(unit Unit) (Size, error) {
 	}
 
 	return NewSize(convert(opt.Val, opt.Unit, unit), unit), nil
-}
-
-func (opt Size) unsafeToUnit(unit Unit) Size {
-	if opt.Unit == unit {
-		return opt
-	}
-
-	if !IsValidUnit(unit) || opt.Unit == UnitUnknown {
-		return opt
-	}
-
-	return NewSize(convert(opt.Val, opt.Unit, unit), unit)
 }
 
 func (opt Size) String() string {
