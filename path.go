@@ -1,12 +1,13 @@
 package lvm2go
 
 import (
+	"os/exec"
 	"sync"
 )
 
 var (
-	lvmBinaryPathLock = &sync.RWMutex{}
-	lvmBinaryPath     = "/sbin/lvm"
+	lvmBinaryPathLock = &sync.Mutex{}
+	lvmBinaryPath     = ""
 )
 
 // SetLVMPath sets the Path to the lvmBinaryPath command.
@@ -20,7 +21,20 @@ func SetLVMPath(path string) {
 
 // GetLVMPath returns the Path to the lvmBinaryPath command.
 func GetLVMPath() string {
-	lvmBinaryPathLock.RLock()
-	defer lvmBinaryPathLock.RUnlock()
+	lvmBinaryPathLock.Lock()
+	defer lvmBinaryPathLock.Unlock()
+
+	if lvmBinaryPath == "" {
+		lvmBinaryPath = resolveLVMPathFromHost()
+	}
+
 	return lvmBinaryPath
 }
+
+var resolveLVMPathFromHost = sync.OnceValue(func() string {
+	if path, err := exec.LookPath("lvm"); err != nil {
+		return "/sbin/lvm"
+	} else {
+		return path
+	}
+})

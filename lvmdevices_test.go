@@ -4,12 +4,18 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
 
 func TestLVMDevices(t *testing.T) {
 	FailTestIfNotRoot(t)
+
+	_, err := exec.LookPath("lvmdevices")
+	if err != nil {
+		t.Skip("Skipping test because lvmdevices command is not found")
+	}
 
 	clnt := NewClient()
 	ctx := context.Background()
