@@ -68,6 +68,9 @@ func (opt VolumeGroupName) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 func (opt VolumeGroupName) ApplyToVGRemoveOptions(opts *VGRemoveOptions) {
 	opts.VolumeGroupName = opt
 }
+func (opt VolumeGroupName) ApplyToVGRenameOptions(opts *VGRenameOptions) {
+	opts.SetOldOrNew(opt)
+}
 func (opt VolumeGroupName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 	opts.VolumeGroupName = opt
 }
