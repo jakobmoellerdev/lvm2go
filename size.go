@@ -13,7 +13,7 @@ import (
 var ErrInvalidSizeGEZero = errors.New("invalid size specified, must be greater than or equal to zero")
 
 var ErrInvalidUnit = errors.New("invalid unit specified")
-var ErrInvalidSizePrefix = errors.New("invalid size prefix specified")
+var ErrInvalidSizePrefix = fmt.Errorf("invalid size prefix specified, must be one of %v", prefixCandidates)
 
 type SizePrefix rune
 
@@ -65,7 +65,13 @@ const (
 
 var validUnits = []Unit{UnitBytes, UnitKiB, UnitMiB, UnitGiB, UnitTiB, UnitPiB, UnitEiB, UnitSector, UnitUnknown}
 
-func IsValidUnit(unit Unit) bool {
+var InvalidSize = Size{Val: -1, Unit: UnitUnknown}
+var InvalidPrefixedSize = PrefixedSize{SizePrefix: SizePrefixNone, Size: InvalidSize}
+
+// IsUnitOrDigit returns true if the unit is a valid unit.
+// a valid unit is defined as a unit that is a member of validUnits.
+// if the unit is not part of a valid unit, IsUnitOrDigit checks if the unit is a digit.
+func IsUnitOrDigit(unit Unit) bool {
 	for _, valid := range validUnits {
 		if valid == unit || strings.ToUpper(string(valid)) == string(unit) {
 			return true
@@ -169,8 +175,16 @@ func (opt Size) ToUnit(unit Unit) (Size, error) {
 		return opt, nil
 	}
 
-	if !IsValidUnit(unit) || opt.Unit == UnitUnknown {
-		return Size{}, ErrInvalidUnit
+	if !IsUnitOrDigit(unit) {
+		return InvalidSize, fmt.Errorf("%w: %s is neither a valid unit nor a digit", ErrInvalidUnit, unit)
+	}
+	if opt.Unit == UnitUnknown {
+		return InvalidSize, fmt.Errorf(
+			"%w: %q cannot be converted to %q, because the unit is unknown - a valid unit is required for conversion (if you meant to use bytes, specify the unit explicitly)",
+			ErrInvalidUnit,
+			opt,
+			unit,
+		)
 	}
 
 	return NewSize(convert(opt.Val, opt.Unit, unit), unit), nil
@@ -182,7 +196,7 @@ func (opt Size) String() string {
 		precision = 2
 	}
 	val := strconv.FormatFloat(opt.Val, 'f', precision, 64)
-	if opt.Unit == UnitUnknown || opt.Unit == 0 {
+	if opt.Unit == UnitUnknown {
 		return val
 	}
 	return val + string(opt.Unit)
@@ -210,13 +224,13 @@ func ParseSize(str string) (Size, error) {
 		unit = UnitUnknown
 	}
 
-	if !IsValidUnit(unit) {
-		return Size{}, ErrInvalidUnit
+	if !IsUnitOrDigit(unit) {
+		return InvalidSize, fmt.Errorf("%w: %s is neither a valid unit nor a digit", ErrInvalidUnit, unit)
 	}
 
 	fval, err := strconv.ParseFloat(str[:len(str)-offset], 64)
 	if err != nil {
-		return Size{}, err
+		return InvalidSize, fmt.Errorf("the value of the size cannot be parsed: %w", err)
 	}
 
 	return NewSize(fval, unit), nil
@@ -234,7 +248,7 @@ func (opt Size) Validate() error {
 		return ErrInvalidSizeGEZero
 	}
 
-	if !IsValidUnit(opt.Unit) {
+	if !IsUnitOrDigit(opt.Unit) {
 		return ErrInvalidUnit
 	}
 
@@ -280,7 +294,7 @@ func ParsePrefixedSize(str string) (PrefixedSize, error) {
 	if len(str) == 0 {
 		size, err := ParseSize(str)
 		if err != nil {
-			return PrefixedSize{}, err
+			return InvalidPrefixedSize, err
 		}
 		return PrefixedSize{Size: size}, nil
 	}
@@ -290,18 +304,18 @@ func ParsePrefixedSize(str string) (PrefixedSize, error) {
 	if unicode.IsDigit(rune(prefix)) {
 		size, err := ParseSize(str)
 		if err != nil {
-			return PrefixedSize{}, err
+			return InvalidPrefixedSize, err
 		}
 		return NewPrefixedSize(SizePrefixNone, size), nil
 	}
 
 	if !slices.Contains(prefixCandidates, prefix) {
-		return PrefixedSize{}, ErrInvalidSizePrefix
+		return InvalidPrefixedSize, ErrInvalidSizePrefix
 	}
 
 	size, err := ParseSize(str[1:])
 	if err != nil {
-		return PrefixedSize{}, err
+		return InvalidPrefixedSize, err
 	}
 
 	return NewPrefixedSize(prefix, size), nil

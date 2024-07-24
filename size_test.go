@@ -1,4 +1,4 @@
-package lvm2go
+package lvm2go_test
 
 import (
 	"errors"
@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	. "github.com/jakobmoellerdev/lvm2go"
 )
 
 type SizeTestCase struct {
@@ -218,34 +220,41 @@ func Test_Size(t *testing.T) {
 
 	t.Run("convert", func(t *testing.T) {
 		for _, tc := range []struct {
-			val  float64
-			a, b Unit
-			exp  float64
+			val   float64
+			a, b  Unit
+			exp   float64
+			error error
 		}{
-			{1, UnitKiB, UnitBytes, 1024},
-			{2, UnitKiB, UnitBytes, 2048},
-			{1, UnitMiB, UnitBytes, 1048576},
-			{1, UnitGiB, UnitBytes, 1073741824},
-			{1, UnitTiB, UnitBytes, 1099511627776},
-			{1, UnitPiB, UnitBytes, 1125899906842624},
-			{1, UnitEiB, UnitBytes, 1152921504606846976},
-			{1, UnitBytes, UnitKiB, 0.0009765625},
-			{1, UnitBytes, UnitMiB, 0.00000095367431640625},
-			{1, UnitBytes, UnitGiB, 0.0000000009313225746154785156},
-			{1, UnitBytes, UnitTiB, 0.0000000000009094947017729282379},
-			{1, UnitBytes, UnitPiB, 0.0000000000000008881784197001252323},
-			{1, UnitBytes, UnitEiB, 0.0000000000000000008673617379884035},
-			{1, UnitSector, UnitBytes, 512},
-			{1, UnitBytes, UnitSector, 0.001953125},
-			{1, UnitSector, UnitKiB, 0.5},
-			{2, UnitSector, UnitKiB, 1},
-			{1, UnitGiB, UnitKiB, 1048576},
-			{1, UnitGiB, UnitUnknown, 1},
-			{1, UnitUnknown, UnitGiB, 1},
+			{1, UnitKiB, UnitBytes, 1024, nil},
+			{2, UnitKiB, UnitBytes, 2048, nil},
+			{1, UnitMiB, UnitBytes, 1048576, nil},
+			{1, UnitGiB, UnitBytes, 1073741824, nil},
+			{1, UnitTiB, UnitBytes, 1099511627776, nil},
+			{1, UnitPiB, UnitBytes, 1125899906842624, nil},
+			{1, UnitEiB, UnitBytes, 1152921504606846976, nil},
+			{1, UnitBytes, UnitKiB, 0.0009765625, nil},
+			{1, UnitBytes, UnitMiB, 0.00000095367431640625, nil},
+			{1, UnitBytes, UnitGiB, 0.0000000009313225746154785156, nil},
+			{1, UnitBytes, UnitTiB, 0.0000000000009094947017729282379, nil},
+			{1, UnitBytes, UnitPiB, 0.0000000000000008881784197001252323, nil},
+			{1, UnitBytes, UnitEiB, 0.0000000000000000008673617379884035, nil},
+			{1, UnitSector, UnitBytes, 512, nil},
+			{1, UnitBytes, UnitSector, 0.001953125, nil},
+			{1, UnitSector, UnitKiB, 0.5, nil},
+			{2, UnitSector, UnitKiB, 1, nil},
+			{1, UnitGiB, UnitKiB, 1048576, nil},
+			{1, UnitGiB, UnitUnknown, 1, nil},
+			{1, UnitUnknown, UnitGiB, -1, ErrInvalidUnit},
 		} {
-			t.Run(fmt.Sprintf("%.2f%s->%s", tc.val, string(tc.a), string(tc.b)), func(t *testing.T) {
-				if actual := convert(tc.val, tc.a, tc.b); actual != tc.exp {
-					t.Errorf("unexpected conversion: %f (expected %f)", actual, tc.exp)
+			t.Run(fmt.Sprintf("%.2f%s->%s", tc.val, tc.a, tc.b), func(t *testing.T) {
+				a, b := NewSize(tc.val, tc.a), NewSize(tc.exp, tc.b)
+				actual, err := a.ToUnit(tc.b)
+				if !errors.Is(err, tc.error) {
+					t.Errorf("unexpected error: %v", err)
+				}
+
+				if err == nil && !reflect.DeepEqual(actual, b) {
+					t.Errorf("unexpected size: %v (expected %v)", actual, b)
 				}
 			})
 		}
