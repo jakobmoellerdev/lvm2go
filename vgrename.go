@@ -2,13 +2,14 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
 	"fmt"
 )
 
 type (
 	VGRenameOptions struct {
-		VolumeGroupName
+		Old VolumeGroupName
+		New VolumeGroupName
+		Force
 		CommonOptions
 	}
 	VGRenameOption interface {
@@ -16,6 +17,17 @@ type (
 	}
 	VGRenameOptionsList []VGRenameOption
 )
+
+func (opts *VGRenameOptions) SetOldOrNew(name VolumeGroupName) {
+	if opts.Old == "" {
+		opts.Old = name
+	} else if opts.New == "" {
+		opts.New = name
+	} else {
+		opts.Old = opts.New
+		opts.New = name
+	}
+}
 
 var (
 	_ ArgumentGenerator = VGRenameOptionsList{}
@@ -32,7 +44,15 @@ func (c *client) VGRename(ctx context.Context, opts ...VGRenameOption) error {
 }
 
 func (list VGRenameOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	args := NewArgs(ArgsTypeGeneric)
+	options := VGRenameOptions{}
+	for _, opt := range list {
+		opt.ApplyToVGRenameOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
 func (opts *VGRenameOptions) ApplyToVGRenameOptions(new *VGRenameOptions) {
@@ -40,5 +60,23 @@ func (opts *VGRenameOptions) ApplyToVGRenameOptions(new *VGRenameOptions) {
 }
 
 func (opts *VGRenameOptions) ApplyToArgs(args Arguments) error {
-	return fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	if opts.Old == "" {
+		return fmt.Errorf("old is empty: %w", ErrVolumeGroupNameRequired)
+	}
+	if opts.New == "" {
+		return fmt.Errorf("new is empty: %w", ErrVolumeGroupNameRequired)
+	}
+
+	for _, arg := range []Argument{
+		opts.Old,
+		opts.New,
+		opts.Force,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

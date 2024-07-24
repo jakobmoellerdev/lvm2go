@@ -1,6 +1,7 @@
 # lvm2go (Alpha)
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/jakobmoellerdev/lvm2go.svg)](https://pkg.go.dev/github.com/jakobmoellerdev/lvm2go)
+[![Test](https://github.com/jakobmoellerdev/lvm2go/actions/workflows/test.yaml/badge.svg)](https://github.com/jakobmoellerdev/lvm2go/actions/workflows/test.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jakobmoellerdev/lvm2go)](https://goreportcard.com/report/github.com/jakobmoellerdev/lvm2go)
 [![License](https://img.shields.io/github/license/jakobmoellerdev/lvm2go)](https://github.com/jakobmoellerdev/lvm2go)
 
@@ -88,6 +89,7 @@ This set of commands is implemented and tested to some extent. The tested featur
 | lvs        | Alpha | Basic       |                   |
 | vgcreate   | Alpha | Basic       |                   |
 | vgremove   | Alpha | Basic       |                   |
+| vgrename   | Alpha | Basic       |                   |
 | vgs        | Alpha | Basic       |                   |
 | pvs        | Alpha | Basic       |                   |
 | lvmdevices | Alpha | Basic       |                   |
