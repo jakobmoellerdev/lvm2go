@@ -1,4 +1,4 @@
-package lvm2go
+package lvm2go_test
 
 import (
 	"bytes"
@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+
+	. "github.com/jakobmoellerdev/lvm2go"
 )
 
 const TestExtentBytes = 1024 * 1024 // 1MiB

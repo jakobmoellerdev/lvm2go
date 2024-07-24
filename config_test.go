@@ -1,9 +1,11 @@
-package lvm2go
+package lvm2go_test
 
 import (
 	"context"
 	"log/slog"
 	"testing"
+
+	. "github.com/jakobmoellerdev/lvm2go"
 )
 
 func Test_RawConfig(t *testing.T) {

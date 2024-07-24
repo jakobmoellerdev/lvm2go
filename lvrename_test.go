@@ -1,9 +1,11 @@
-package lvm2go
+package lvm2go_test
 
 import (
 	"context"
 	"fmt"
 	"testing"
+
+	. "github.com/jakobmoellerdev/lvm2go"
 )
 
 func TestLVRename(t *testing.T) {

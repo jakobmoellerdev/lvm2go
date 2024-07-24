@@ -1,10 +1,12 @@
-package lvm2go
+package lvm2go_test
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 	"testing"
+
+	. "github.com/jakobmoellerdev/lvm2go"
 )
 
 func TestLVs(t *testing.T) {

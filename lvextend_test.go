@@ -1,8 +1,10 @@
-package lvm2go
+package lvm2go_test
 
 import (
 	"context"
 	"testing"
+
+	. "github.com/jakobmoellerdev/lvm2go"
 )
 
 func TestLVExtend(t *testing.T) {

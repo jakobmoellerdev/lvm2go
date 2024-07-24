@@ -1,4 +1,4 @@
-package lvm2go
+package lvm2go_test
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	. "github.com/jakobmoellerdev/lvm2go"
 )
 
 func TestLVMDevices(t *testing.T) {
