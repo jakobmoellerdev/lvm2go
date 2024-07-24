@@ -96,6 +96,41 @@ func TestLVs(t *testing.T) {
 					t.Fatalf("Expected logical volume %s not found in LVs report", expected)
 				}
 			}
+
+			vgs, err := clnt.VGs(ctx, infra.volumeGroup.Name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(vgs) != 1 {
+				t.Fatalf("Expected 1 volume group, got %d", len(vgs))
+			}
+			vg := vgs[0]
+
+			if vg.Name != infra.volumeGroup.Name {
+				t.Fatalf("Expected volume group %s, got %s", infra.volumeGroup.Name, vg.Name)
+			}
+
+			pvs, err := clnt.PVs(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(pvs) != len(infra.loopDevices) {
+				t.Fatalf("Expected %d physical volumes, got %d", len(infra.loopDevices), len(pvs))
+			}
+
+			for _, pv := range pvs {
+				found := false
+				for _, ld := range infra.loopDevices {
+					if string(pv.Name) == ld.Device() {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatalf("physical volume %s in PVs report is not part of the original loop devices", pv.Name)
+				}
+			}
+
 		})
 	}
 }

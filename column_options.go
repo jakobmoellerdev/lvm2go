@@ -6,52 +6,13 @@ import (
 
 var (
 	DefaultLVsColumnOptions = ColumnOptions{
-		"lv_uuid",
-		"lv_name",
-		"lv_full_name",
-		"lv_path",
-		"lv_size",
-		"lv_kernel_major",
-		"lv_kernel_minor",
-		"origin",
-		"origin_size",
-		"pool_lv",
-		"lv_tags",
-		"lv_attr",
-		"vg_name",
-		"data_percent",
-		"metadata_percent",
-		"pool_lv",
+		"lv_all",
 	}
 	DefaultVGsColumnOptions = ColumnOptions{
-		"vg_uuid",
-		"vg_name",
-		"vg_size",
-		"vg_free",
-		"pv_count",
-		"lv_count",
-		"snap_count",
-		"vg_attr",
+		"vg_all",
 	}
 	DefaultPVsColumnOptions = ColumnOptions{
-		"pv_uuid",
-		"pv_name",
-		"dev_size",
-		"pv_major",
-		"pv_minor",
-		"pv_mda_free",
-		"pv_mda_size",
-		"pe_start",
-		"pv_size",
-		"pv_free",
-		"pv_used",
-		"pv_mda_count",
-		"pv_mda_used_count",
-		"pv_attr",
-		"pv_tags",
-		"vg_name",
-		"pv_device_id",
-		"pv_device_id_type",
+		"pv_all",
 	}
 )
 

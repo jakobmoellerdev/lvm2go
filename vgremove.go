@@ -40,20 +40,15 @@ func (opts *VGRemoveOptions) ApplyToArgs(args Arguments) error {
 		return fmt.Errorf("VolumeGroupName is required for removal of a volume group")
 	}
 
-	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.Tags.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.Force.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
-		return err
+	for _, arg := range []Argument{
+		opts.VolumeGroupName,
+		opts.Tags,
+		opts.Force,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
 	}
 
 	return nil

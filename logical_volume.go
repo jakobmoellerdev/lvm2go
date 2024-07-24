@@ -48,7 +48,9 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		"pool_lv":      &lv.PoolLogicalVolume,
 		"vg_name":      (*string)(&lv.VolumeGroupName),
 	} {
-		if err := json.Unmarshal(raw[key], fieldPtr); err != nil {
+		if val, ok := raw[key]; !ok {
+			continue
+		} else if err := json.Unmarshal(val, fieldPtr); err != nil {
 			return err
 		}
 	}

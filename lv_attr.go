@@ -1,11 +1,36 @@
 package lvm2go
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
 
 type VolumeType rune
+
+var (
+	ErrPartialActivation                         = errors.New("found partial activation of physical volumes, one or more physical volumes are setup incorrectly")
+	ErrUnknownVolumeHealth                       = errors.New("unknown volume health reported, verification on the host system is required")
+	ErrWriteCacheError                           = errors.New("write cache error signifies that dm-writecache reports an error")
+	ErrThinPoolFailed                            = errors.New("thin pool encounters serious failures and hence no further I/O is permitted at all")
+	ErrThinPoolOutOfDataSpace                    = errors.New("thin pool is out of data space, no further data can be written to the thin pool without extension")
+	ErrThinPoolMetadataReadOnly                  = errors.New("metadata read only signifies that thin pool encounters certain types of failures, but it's still possible to do data reads. However, no metadata changes are allowed")
+	ErrThinVolumeFailed                          = errors.New("the underlying thin pool entered a failed state and no further I/O is permitted")
+	ErrRAIDRefreshNeeded                         = errors.New("RAID volume requires a refresh, one or more Physical Volumes have suffered a write error. This could be due to temporary failure of the Physical Volume or an indication it is failing. The device should be refreshed or replaced")
+	ErrRAIDMismatchesExist                       = errors.New("RAID volume has portions of the array that are not coherent. Inconsistencies are detected by initiating a check RAID logical volume. The scrubbing operations, \"check\" and \"repair\", can be performed on a RAID volume via the \"lvchange\" command")
+	ErrRAIDReshaping                             = errors.New("RAID volume is currently reshaping. Reshaping signifies a RAID Logical Volume is either undergoing a stripe addition/removal, a stripe size or RAID algorithm change")
+	ErrRAIDReshapeRemoved                        = errors.New("RAID volume signifies freed raid images after reshaping")
+	ErrRAIDWriteMostly                           = errors.New("RAID volume is marked as write-mostly. this signifies the devices in a RAID 1 logical volume have been marked write-mostly. This means that reading from this device will be avoided, and other devices will be preferred for reading (unless no other devices are available). This minimizes the I/O to the specified device")
+	ErrLogicalVolumeSuspended                    = errors.New("logical volume is in a suspended state, no I/O is permitted")
+	ErrInvalidSnapshot                           = errors.New("logical volume is an invalid snapshot, no I/O is permitted")
+	ErrSnapshotMergeFailed                       = errors.New("snapshot merge failed, no I/O is permitted")
+	ErrMappedDevicePresentWithInactiveTables     = errors.New("mapped device present with inactive tables, no I/O is permitted")
+	ErrMappedDevicePresentWithoutTables          = errors.New("mapped device present without tables, no I/O is permitted")
+	ErrThinPoolCheckNeeded                       = errors.New("a thin pool check is needed")
+	ErrUnknownVolumeState                        = errors.New("unknown volume state, verification on the host system is required")
+	ErrHistoricalVolumeState                     = errors.New("historical volume state (volume no longer exists but is kept around in logs), verification on the host system is required")
+	ErrLogicalVolumeUnderlyingDeviceStateUnknown = errors.New("logical volume underlying device state is unknown, verification on the host system is required")
+)
 
 const (
 	VolumeTypeMirrored                   VolumeType = 'm'
@@ -73,8 +98,10 @@ const (
 	StateMappedDevicePresentWithoutTables      State = 'd'
 	StateMappedDevicePresentWithInactiveTables State = 'i'
 	StateNone                                  State = '-'
+	StateHistorical                            State = 'h'
+	StateThinPoolCheckNeeded                   State = 'c'
+	StateSuspendedThinPoolCheckNeeded          State = 'C'
 	StateUnknown                               State = 'X'
-	StateCheckNeeded                           State = 'c'
 )
 
 type Open rune
@@ -103,11 +130,28 @@ const (
 	ZeroAttrFalse ZeroAttr = '-'
 )
 
-type PartialAttr rune
+type VolumeHealth rune
 
 const (
-	PartialAttrTrue  = 'p'
-	PartialAttrFalse = '-'
+	VolumeHealthPartialActivation        = 'p'
+	VolumeHealthUnknown                  = 'X'
+	VolumeHealthOK                       = '-'
+	VolumeHealthRAIDRefreshNeeded        = 'r'
+	VolumeHealthRAIDMismatchesExist      = 'm'
+	VolumeHealthRAIDWriteMostly          = 'w'
+	VolumeHealthRAIDReshaping            = 's'
+	VolumeHealthRAIDReshapeRemoved       = 'R'
+	VolumeHealthThinFailed               = 'F'
+	VolumeHealthThinPoolOutOfDataSpace   = 'D'
+	VolumeHealthThinPoolMetadataReadOnly = 'M'
+	VolumeHealthWriteCacheError          = 'E'
+)
+
+type SkipActivation rune
+
+const (
+	SkipActivationTrue  SkipActivation = 'k'
+	SkipActivationFalse SkipActivation = '-'
 )
 
 // LVAttributes has mapped lv_attr information, see https://linux.die.net/man/8/lvs
@@ -123,10 +167,11 @@ type LVAttributes struct {
 	Open
 	OpenTarget
 	ZeroAttr
-	PartialAttr
+	VolumeHealth
+	SkipActivation
 }
 
-func ParsedLVAttributes(raw string) (LVAttributes, error) {
+func ParseLVAttributes(raw string) (LVAttributes, error) {
 	if len(raw) != 10 {
 		return LVAttributes{}, fmt.Errorf("%s is an invalid length lv_attr", raw)
 	}
@@ -139,25 +184,106 @@ func ParsedLVAttributes(raw string) (LVAttributes, error) {
 		Open(raw[5]),
 		OpenTarget(raw[6]),
 		ZeroAttr(raw[7]),
-		PartialAttr(raw[8]),
+		VolumeHealth(raw[8]),
+		SkipActivation(raw[9]),
 	}, nil
 }
 
 func (l LVAttributes) String() string {
 	var builder strings.Builder
-	builder.Grow(9)
-	builder.WriteRune(rune(l.VolumeType))
-	builder.WriteRune(rune(l.Permissions))
-	builder.WriteRune(rune(l.AllocationPolicyAttr))
-	builder.WriteRune(rune(l.Minor))
-	builder.WriteRune(rune(l.State))
-	builder.WriteRune(rune(l.Open))
-	builder.WriteRune(rune(l.OpenTarget))
-	builder.WriteRune(rune(l.ZeroAttr))
-	builder.WriteRune(rune(l.PartialAttr))
+	fields := []rune{
+		rune(l.VolumeType),
+		rune(l.Permissions),
+		rune(l.AllocationPolicyAttr),
+		rune(l.Minor),
+		rune(l.State),
+		rune(l.Open),
+		rune(l.OpenTarget),
+		rune(l.ZeroAttr),
+		rune(l.VolumeHealth),
+		rune(l.SkipActivation),
+	}
+	builder.Grow(len(fields))
+	for _, r := range fields {
+		builder.WriteRune(r)
+	}
 	return builder.String()
 }
 
 func (l LVAttributes) MarshalText() ([]byte, error) {
 	return []byte(l.String()), nil
+}
+
+// VerifyHealth checks the health of the logical volume based on the attributes, mainly
+// bit 9 (volume health indicator) based on bit 1 (volume type indicator)
+// All failed known states are reported with an error message.
+func (l LVAttributes) VerifyHealth() error {
+	if l.VolumeHealth == VolumeHealthPartialActivation {
+		return ErrPartialActivation
+	}
+	if l.VolumeHealth == VolumeHealthUnknown {
+		return ErrUnknownVolumeHealth
+	}
+	if l.VolumeHealth == VolumeHealthWriteCacheError {
+		return ErrWriteCacheError
+	}
+
+	if l.VolumeType == VolumeTypeThinPool {
+		switch l.VolumeHealth {
+		case VolumeHealthThinFailed:
+			return ErrThinPoolFailed
+		case VolumeHealthThinPoolOutOfDataSpace:
+			return ErrThinPoolOutOfDataSpace
+		case VolumeHealthThinPoolMetadataReadOnly:
+			return ErrThinPoolMetadataReadOnly
+		}
+	}
+
+	if l.VolumeType == VolumeTypeThinVolume {
+		switch l.VolumeHealth {
+		case VolumeHealthThinFailed:
+			return ErrThinVolumeFailed
+		}
+	}
+
+	if l.VolumeType == VolumeTypeRAID || l.VolumeType == VolumeTypeRAIDNoInitialSync {
+		switch l.VolumeHealth {
+		case VolumeHealthRAIDRefreshNeeded:
+			return ErrRAIDRefreshNeeded
+		case VolumeHealthRAIDMismatchesExist:
+			return ErrRAIDMismatchesExist
+		case VolumeHealthRAIDReshaping:
+			return ErrRAIDReshaping
+		case VolumeHealthRAIDReshapeRemoved:
+			return ErrRAIDReshapeRemoved
+		case VolumeHealthRAIDWriteMostly:
+			return ErrRAIDWriteMostly
+		}
+	}
+
+	switch l.State {
+	case StateSuspended, StateSuspendedSnapshot:
+		return ErrLogicalVolumeSuspended
+	case StateInvalidSnapshot:
+		return ErrInvalidSnapshot
+	case StateSnapshotMergeFailed, StateSuspendedSnapshotMergeFailed:
+		return ErrSnapshotMergeFailed
+	case StateMappedDevicePresentWithInactiveTables:
+		return ErrMappedDevicePresentWithInactiveTables
+	case StateMappedDevicePresentWithoutTables:
+		return ErrMappedDevicePresentWithoutTables
+	case StateThinPoolCheckNeeded, StateSuspendedThinPoolCheckNeeded:
+		return ErrThinPoolCheckNeeded
+	case StateUnknown:
+		return ErrUnknownVolumeState
+	case StateHistorical:
+		return ErrHistoricalVolumeState
+	}
+
+	switch l.Open {
+	case OpenUnknown:
+		return ErrLogicalVolumeUnderlyingDeviceStateUnknown
+	}
+
+	return nil
 }
