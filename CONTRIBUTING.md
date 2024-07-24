@@ -61,7 +61,7 @@ To set up a development environment, follow these steps:
     dnf install lvm2
     ```
 
-3. Run the libary tests:
+3. Run the library tests:
     ```sh
     # Example for a Node.js project
     sudo go test -v ./...
