@@ -27,10 +27,26 @@ jobs:
       - name: Display Go version
         run: go version
       - name: Run tests
-        run: sudo go test ./...
+        run: sudo go test -cover -coverprofile=cover.out ./...
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage
+          path: cover.out
       - name: Run simple example
         run: sudo go run examples/simple/main.go
       - name: Run activation example
         run: sudo go run examples/activation/main.go
       - name: Run thinpool example
         run: sudo go run examples/thinpool/main.go
+
+  code-coverage:
+    name: "Code coverage report"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: unit-tests # Depends on the artifact uploaded by the "unit_tests" job
+    steps:
+      - uses: fgrosse/go-coverage-report@v1.0.2 # Consider using a Git revision for maximum security
+        with:
+          coverage-artifact-name: "code-coverage" # can be omitted if you used this default value
+          coverage-file-name: "cover.out" # can be omitted if you used this default value
