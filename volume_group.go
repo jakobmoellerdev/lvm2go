@@ -22,7 +22,9 @@ func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
 		"vg_uuid": &vg.UUID,
 		"vg_name": (*string)(&vg.Name),
 	} {
-		if err := json.Unmarshal(raw[key], fieldPtr); err != nil {
+		if val, ok := raw[key]; !ok {
+			continue
+		} else if err := json.Unmarshal(val, fieldPtr); err != nil {
 			return err
 		}
 	}
@@ -80,6 +82,8 @@ func (opt VolumeGroupName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
 }
 
 func (opt VolumeGroupName) ApplyToArgs(args Arguments) error {
-	args.AddOrReplace(string(opt))
+	if len(opt) > 0 {
+		args.AddOrReplace(string(opt))
+	}
 	return nil
 }

@@ -36,7 +36,9 @@ func (pv *PhysicalVolume) UnmarshalJSON(data []byte) error {
 		"vg_name":      (*string)(&pv.VGName),
 		"pv_device_id": &pv.DeviceID,
 	} {
-		if err := json.Unmarshal(raw[key], fieldPtr); err != nil {
+		if val, ok := raw[key]; !ok {
+			continue
+		} else if err := json.Unmarshal(val, fieldPtr); err != nil {
 			return err
 		}
 	}

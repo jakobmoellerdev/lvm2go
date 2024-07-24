@@ -23,14 +23,16 @@ func unmarshalAndConvertToStrings(raw map[string]json.RawMessage, key string, fi
 }
 
 func unmarshalAndConvertToSize(raw map[string]json.RawMessage, key string, fieldPtr *Size) error {
-	if raw[key] == nil || len(raw[key]) == 0 {
+	val, ok := raw[key]
+	if !ok || val == nil || len(val) == 0 {
 		*fieldPtr = NewSize(0, UnitBytes)
 		return nil
 	}
 	var str string
-	if err := json.Unmarshal(raw[key], &str); err != nil {
+	if err := json.Unmarshal(val, &str); err != nil {
 		return err
 	}
+	str = strings.TrimSpace(str)
 	if str == "" {
 		*fieldPtr = NewSize(0, UnitBytes)
 		return nil
@@ -101,7 +103,7 @@ func unmarshalAndConvertToLVAttributes(raw map[string]json.RawMessage, key strin
 		*fieldPtr = LVAttributes{}
 		return nil
 	}
-	attrs, err := ParsedLVAttributes(str)
+	attrs, err := ParseLVAttributes(str)
 	if err != nil {
 		return err
 	}
