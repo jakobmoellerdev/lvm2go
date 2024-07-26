@@ -91,8 +91,17 @@ func (opt PhysicalVolumeName) ApplyToArgs(args Arguments) error {
 func (opt PhysicalVolumeName) ApplyToVGCreateOptions(opts *VGCreateOptions) {
 	opts.PhysicalVolumeNames = append(opts.PhysicalVolumeNames, opt)
 }
+func (opt PhysicalVolumeName) ApplyToVGExtendOptions(opts *VGExtendOptions) {
+	opts.PhysicalVolumeNames = append(opts.PhysicalVolumeNames, opt)
+}
 
 type PhysicalVolumeNames []PhysicalVolumeName
+
+func (opt PhysicalVolumeNames) ApplyToVGExtendOptions(opts *VGExtendOptions) {
+	for _, name := range opt {
+		name.ApplyToVGExtendOptions(opts)
+	}
+}
 
 func PhysicalVolumesFrom(names ...string) PhysicalVolumeNames {
 	opts := make(PhysicalVolumeNames, len(names))
