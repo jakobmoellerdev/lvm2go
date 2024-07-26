@@ -93,6 +93,15 @@ func (t LoopbackDevices) Devices() Devices {
 	return devices
 }
 
+func (t LoopbackDevices) PhysicalVolumeNames() PhysicalVolumeNames {
+	var pvs PhysicalVolumeNames
+	for _, loop := range t {
+		pvs = append(pvs, PhysicalVolumeName(loop.Device()))
+	}
+	return pvs
+
+}
+
 func MakeTestLoopbackDevice(t *testing.T, size Size) LoopbackDevice {
 	ctx := context.Background()
 

@@ -2,13 +2,15 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
 	"fmt"
 )
 
 type (
 	VGExtendOptions struct {
 		VolumeGroupName
+		PhysicalVolumeNames
+		Force
+		Zero
 		CommonOptions
 	}
 	VGExtendOption interface {
@@ -37,7 +39,15 @@ func (opts *VGExtendOptions) ApplyToVGExtendOptions(new *VGExtendOptions) {
 }
 
 func (list VGExtendOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	args := NewArgs(ArgsTypeGeneric)
+	options := VGExtendOptions{}
+	for _, opt := range list {
+		opt.ApplyToVGExtendOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
 func (opts *VGExtendOptions) ApplyToArgs(args Arguments) error {
@@ -45,12 +55,20 @@ func (opts *VGExtendOptions) ApplyToArgs(args Arguments) error {
 		return fmt.Errorf("VolumeGroupName is required for extension of a volume group")
 	}
 
-	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
-		return err
+	if len(opts.PhysicalVolumeNames) == 0 {
+		return fmt.Errorf("at least one PhysicalVolumeName is required for extension of a volume group")
 	}
 
-	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
-		return err
+	for _, arg := range []Argument{
+		opts.VolumeGroupName,
+		opts.PhysicalVolumeNames,
+		opts.Force,
+		opts.Zero,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
 	}
 
 	return nil

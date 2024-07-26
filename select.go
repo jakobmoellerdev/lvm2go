@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const QuotationRune = '"'
+
 type Select string
 
 func (opt Select) ApplyToLVsOptions(opts *LVsOptions) {
@@ -37,13 +39,13 @@ func NewSelector(
 	last := len(fields) - 1
 	for field, value := range fields {
 		last--
-		sb.WriteRune('"')
+		sb.WriteRune(QuotationRune)
 		sb.WriteString(field)
-		sb.WriteRune('"')
+		sb.WriteRune(QuotationRune)
 		sb.WriteString(string(co))
-		sb.WriteRune('"')
+		sb.WriteRune(QuotationRune)
 		sb.WriteString(value)
-		sb.WriteRune('"')
+		sb.WriteRune(QuotationRune)
 		if last > 0 {
 			sb.WriteRune(' ')
 			sb.WriteString(string(lo))
