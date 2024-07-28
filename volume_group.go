@@ -127,6 +127,9 @@ func (opt VolumeGroupName) ApplyToVGRenameOptions(opts *VGRenameOptions) {
 func (opt VolumeGroupName) ApplyToVGChangeOptions(opts *VGChangeOptions) {
 	opts.VolumeGroupName = opt
 }
+func (opt VolumeGroupName) ApplyToVGReduceOptions(opts *VGReduceOptions) {
+	opts.VolumeGroupName = opt
+}
 func (opt VolumeGroupName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 	opts.VolumeGroupName = opt
 }

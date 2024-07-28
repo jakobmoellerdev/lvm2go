@@ -25,18 +25,18 @@ type args struct {
 	typ ArgsType
 }
 
-type ArgsType string
+type ArgsType int8
 
 const (
-	ArgsTypeGeneric  ArgsType = "generic"
-	ArgsTypeLVs      ArgsType = "lvs"
-	ArgsTypePVs      ArgsType = "pvs"
-	ArgsTypeVGs      ArgsType = "vgs"
-	ArgsTypeLVCreate ArgsType = "lvcreate"
-	ArgsTypeLVChange ArgsType = "lvchange"
-	ArgsTypeVGCreate ArgsType = "vgcreate"
-	ArgsTypeVGChange ArgsType = "vgchange"
-	ArgsTypeLVRename ArgsType = "lvrename"
+	ArgsTypeGeneric  ArgsType = iota
+	ArgsTypeLVs      ArgsType = iota
+	ArgsTypePVs      ArgsType = iota
+	ArgsTypeVGs      ArgsType = iota
+	ArgsTypeLVCreate ArgsType = iota
+	ArgsTypeLVChange ArgsType = iota
+	ArgsTypeVGCreate ArgsType = iota
+	ArgsTypeVGChange ArgsType = iota
+	ArgsTypeLVRename ArgsType = iota
 )
 
 func NewArgs(typ ArgsType) Arguments {

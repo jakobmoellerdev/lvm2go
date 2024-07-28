@@ -97,8 +97,17 @@ func (opt PhysicalVolumeName) ApplyToVGCreateOptions(opts *VGCreateOptions) {
 func (opt PhysicalVolumeName) ApplyToVGExtendOptions(opts *VGExtendOptions) {
 	opts.PhysicalVolumeNames = append(opts.PhysicalVolumeNames, opt)
 }
+func (opt PhysicalVolumeName) ApplyToVGReduceOptions(opts *VGReduceOptions) {
+	opts.PhysicalVolumeNames = append(opts.PhysicalVolumeNames, opt)
+}
 
 type PhysicalVolumeNames []PhysicalVolumeName
+
+func (opt PhysicalVolumeNames) ApplyToVGReduceOptions(opts *VGReduceOptions) {
+	for _, name := range opt {
+		name.ApplyToVGReduceOptions(opts)
+	}
+}
 
 func (opt PhysicalVolumeNames) ApplyToVGExtendOptions(opts *VGExtendOptions) {
 	for _, name := range opt {

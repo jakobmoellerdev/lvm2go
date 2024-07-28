@@ -89,6 +89,9 @@ This set of commands is implemented and tested to some extent. The tested featur
 | lvs        | Alpha | Basic       |                   |
 | vgcreate   | Alpha | Basic       |                   |
 | vgremove   | Alpha | Basic       |                   |
+| vgextend   | Alpha | Basic       |                   |
+| vgreduce   | Alpha | Basic       |                   |
+| vgchange   | Alpha | Basic       |                   |
 | vgrename   | Alpha | Basic       |                   |
 | vgs        | Alpha | Basic       |                   |
 | pvs        | Alpha | Basic       |                   |
