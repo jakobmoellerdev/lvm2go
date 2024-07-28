@@ -45,4 +45,17 @@ func TestVGExtend(t *testing.T) {
 		t.Fatalf("expected 3 physical volumes, got %d", vg.PvCount)
 	}
 
+	if err := clnt.VGReduce(ctx, infra.volumeGroup.Name, addedDevices.PhysicalVolumeNames()); err != nil {
+		t.Fatal(err)
+	}
+
+	vg, err = clnt.VG(ctx, infra.volumeGroup.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if vg.PvCount != 1 {
+		t.Fatalf("expected 3 physical volumes, got %d", vg.PvCount)
+	}
+
 }

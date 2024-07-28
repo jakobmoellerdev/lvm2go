@@ -2,13 +2,15 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
 	"fmt"
 )
 
 type (
 	VGReduceOptions struct {
 		VolumeGroupName
+		PhysicalVolumeNames
+		RemoveMissing
+		Force
 		CommonOptions
 	}
 	VGReduceOption interface {
@@ -32,9 +34,41 @@ func (c *client) VGReduce(ctx context.Context, opts ...VGReduceOption) error {
 }
 
 func (list VGReduceOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	args := NewArgs(ArgsTypeGeneric)
+	options := VGReduceOptions{}
+	for _, opt := range list {
+		opt.ApplyToVGReduceOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
 func (opts *VGReduceOptions) ApplyToArgs(args Arguments) error {
-	return fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	if opts.VolumeGroupName == "" {
+		return fmt.Errorf("VolumeGroupName is required for extension of a volume group")
+	}
+
+	if len(opts.PhysicalVolumeNames) == 0 {
+		return fmt.Errorf("at least one PhysicalVolumeName is required for extension of a volume group")
+	}
+
+	for _, arg := range []Argument{
+		opts.VolumeGroupName,
+		opts.PhysicalVolumeNames,
+		opts.RemoveMissing,
+		opts.Force,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (opts *VGReduceOptions) ApplyToVGReduceOptions(new *VGReduceOptions) {
+	*new = *opts
 }
