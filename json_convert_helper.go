@@ -17,7 +17,9 @@ func unmarshalAndConvertToStrings(raw map[string]json.RawMessage, key string, fi
 		return err
 	}
 
-	*fieldPtr = strings.Split(str, ",")
+	if len(str) > 0 {
+		*fieldPtr = strings.Split(str, ",")
+	}
 
 	return nil
 }

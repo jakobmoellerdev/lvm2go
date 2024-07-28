@@ -18,7 +18,7 @@ type LogicalVolume struct {
 	Major int64  `json:"lv_kernel_major"`
 	Minor int64  `json:"lv_kernel_minor"`
 
-	Tags string       `json:"lv_tags"`
+	Tags Tags         `json:"lv_tags"`
 	Attr LVAttributes `json:"lv_attr"`
 	Size Size         `json:"lv_size"`
 
@@ -43,7 +43,6 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		"lv_name":      (*string)(&lv.Name),
 		"lv_full_name": &lv.FullName,
 		"lv_path":      &lv.Path,
-		"lv_tags":      &lv.Tags,
 		"origin":       &lv.Origin,
 		"pool_lv":      &lv.PoolLogicalVolume,
 		"vg_name":      (*string)(&lv.VolumeGroupName),
@@ -51,6 +50,14 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		if val, ok := raw[key]; !ok {
 			continue
 		} else if err := json.Unmarshal(val, fieldPtr); err != nil {
+			return err
+		}
+	}
+
+	for key, fieldPtr := range map[string]*Tags{
+		"lv_tags": &lv.Tags,
+	} {
+		if err := unmarshalAndConvertToStrings(raw, key, (*[]string)(fieldPtr)); err != nil {
 			return err
 		}
 	}
@@ -119,6 +126,10 @@ func (opt LogicalVolumeName) ApplyToLVChangeOptions(opts *LVChangeOptions) {
 	opts.LogicalVolumeName = opt
 }
 
+func (opt LogicalVolumeName) ApplyToLVsOptions(opts *LVsOptions) {
+	opts.LogicalVolumeName = opt
+}
+
 type FQLogicalVolumeName struct {
 	VolumeGroupName
 	LogicalVolumeName
@@ -147,9 +158,14 @@ func (opt *FQLogicalVolumeName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
 func (opt *FQLogicalVolumeName) ApplyToLVReduceOptions(opts *LVReduceOptions) {
 	opts.VolumeGroupName, opts.LogicalVolumeName = opt.VolumeGroupName, opt.LogicalVolumeName
 }
+
 func (opt *FQLogicalVolumeName) ApplyToLVRenameOptions(opts *LVRenameOptions) {
 	opts.VolumeGroupName = opt.VolumeGroupName
 	opts.SetOldOrNew(opt.LogicalVolumeName)
+}
+
+func (opt *FQLogicalVolumeName) ApplyToLVsOptions(opts *LVsOptions) {
+	opts.VolumeGroupName, opts.LogicalVolumeName = opt.VolumeGroupName, opt.LogicalVolumeName
 }
 
 func (opt *FQLogicalVolumeName) Split() (VolumeGroupName, LogicalVolumeName) {

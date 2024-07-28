@@ -19,6 +19,9 @@ func (opt Tags) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 func (opt Tags) ApplyToVGRemoveOptions(opts *VGRemoveOptions) {
 	opts.Tags = opt
 }
+func (opt Tags) ApplyToVGChangeOptions(opts *VGChangeOptions) {
+	opts.Tags = opt
+}
 func (opt Tags) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 	opts.Tags = opt
 }
@@ -29,6 +32,10 @@ func (opt Tags) ApplyToArgs(args Arguments) error {
 	}
 
 	switch args.GetType() {
+	case ArgsTypeLVChange:
+		fallthrough
+	case ArgsTypeVGChange:
+		fallthrough
 	case ArgsTypeVGCreate:
 		fallthrough
 	case ArgsTypeLVCreate:

@@ -2,7 +2,10 @@ package lvm2go
 
 import (
 	"encoding/json"
+	"errors"
 )
+
+var ErrPhysicalVolumeNameRequired = errors.New("PhysicalVolumeName is required for a fully qualified physical volume")
 
 type PhysicalVolume struct {
 	UUID         string             `json:"pv_uuid"`

@@ -102,8 +102,15 @@ func (t LoopbackDevices) PhysicalVolumeNames() PhysicalVolumeNames {
 
 }
 
+// testLoopbackCreationSync is a mutex to synchronize the creation of loopback devices in tests
+// so that they don't interfere with each other by requesting the same free loopback device
+var testLoopbackCreationSync = sync.Mutex{}
+
 func MakeTestLoopbackDevice(t *testing.T, size Size) LoopbackDevice {
+	t.Helper()
 	ctx := context.Background()
+	testLoopbackCreationSync.Lock()
+	defer testLoopbackCreationSync.Unlock()
 
 	backingFilePath := filepath.Join(t.TempDir(), fmt.Sprintf("%s.img", NewNonDeterministicTestID(t)))
 
@@ -132,7 +139,6 @@ func MakeTestLoopbackDevice(t *testing.T, size Size) LoopbackDevice {
 	}
 	logger = logger.With("loop", loop)
 	logger.DebugContext(ctx, "created test loopback device successfully")
-
 	t.Cleanup(func() {
 		logger.DebugContext(ctx, "cleaning up test loopback device")
 		if err := loop.Close(); err != nil {

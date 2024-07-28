@@ -86,6 +86,7 @@ func init() {
 }
 
 func Test_Size(t *testing.T) {
+	t.Parallel()
 	for _, tc := range DefaultSizeTestCases {
 		t.Run(tc.InputToParse, func(t *testing.T) {
 			actual, err := ParseSize(tc.InputToParse)

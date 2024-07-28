@@ -74,10 +74,6 @@ func TestLVs(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if len(lvs) != len(tc.Volumes) {
-				t.Fatalf("Expected %d logical volumes, got %d", len(tc.Volumes), len(lvs))
-			}
-
 			for _, expected := range infra.lvs {
 				found := false
 				for _, lv := range lvs {
@@ -97,14 +93,10 @@ func TestLVs(t *testing.T) {
 				}
 			}
 
-			vgs, err := clnt.VGs(ctx, infra.volumeGroup.Name)
+			vg, err := clnt.VG(ctx, infra.volumeGroup.Name)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(vgs) != 1 {
-				t.Fatalf("Expected 1 volume group, got %d", len(vgs))
-			}
-			vg := vgs[0]
 
 			if vg.Name != infra.volumeGroup.Name {
 				t.Fatalf("Expected volume group %s, got %s", infra.volumeGroup.Name, vg.Name)

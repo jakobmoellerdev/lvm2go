@@ -33,7 +33,9 @@ const (
 	ArgsTypePVs      ArgsType = "pvs"
 	ArgsTypeVGs      ArgsType = "vgs"
 	ArgsTypeLVCreate ArgsType = "lvcreate"
+	ArgsTypeLVChange ArgsType = "lvchange"
 	ArgsTypeVGCreate ArgsType = "vgcreate"
+	ArgsTypeVGChange ArgsType = "vgchange"
 	ArgsTypeLVRename ArgsType = "lvrename"
 )
 
