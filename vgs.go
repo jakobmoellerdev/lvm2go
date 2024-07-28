@@ -24,10 +24,10 @@ var (
 	_ Argument          = (*VGsOptions)(nil)
 )
 
-func (c *client) VGs(ctx context.Context, opts ...VGsOption) ([]VolumeGroup, error) {
+func (c *client) VGs(ctx context.Context, opts ...VGsOption) ([]*VolumeGroup, error) {
 	type vgReport struct {
 		Report []struct {
-			VG []VolumeGroup `json:"vg"`
+			VG []*VolumeGroup `json:"vg"`
 		} `json:"report"`
 	}
 	res := new(vgReport)
@@ -59,6 +59,30 @@ func (c *client) VGs(ctx context.Context, opts ...VGsOption) ([]VolumeGroup, err
 	}
 
 	return res.Report[0].VG, nil
+}
+
+func (c *client) VG(ctx context.Context, opts ...VGsOption) (*VolumeGroup, error) {
+	found := false
+	for _, opt := range opts {
+		if _, ok := opt.(VolumeGroupName); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, ErrVolumeGroupNameRequired
+	}
+
+	vgs, err := c.VGs(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(vgs) == 0 {
+		return nil, ErrVolumeGroupNotFound
+	}
+
+	return vgs[0], nil
 }
 
 func (opts *VGsOptions) ApplyToArgs(args Arguments) error {

@@ -8,6 +8,7 @@ import (
 )
 
 func TestVGExtend(t *testing.T) {
+	t.Parallel()
 	FailTestIfNotRoot(t)
 
 	clnt := NewClient()
@@ -35,20 +36,10 @@ func TestVGExtend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	vgs, err := clnt.VGs(ctx)
+	vg, err := clnt.VG(ctx, infra.volumeGroup.Name)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if len(vgs) != 1 {
-		t.Fatalf("expected 1 volume group, got %d", len(vgs))
-	}
-
-	if vgs[0].Name != infra.volumeGroup.Name {
-		t.Fatalf("expected volume group %s, got %s", infra.volumeGroup.Name, vgs[0].Name)
-	}
-
-	vg := vgs[0]
 
 	if vg.PvCount != 3 {
 		t.Fatalf("expected 3 physical volumes, got %d", vg.PvCount)

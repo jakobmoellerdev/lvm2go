@@ -11,6 +11,7 @@ type VolumeGroup struct {
 	LockType     string          `json:"vg_lock_type"`
 	LockArgs     string          `json:"vg_lock_args"`
 	VGAttributes string          `json:"vg_attr"`
+	Tags         Tags            `json:"vg_tags"`
 
 	ExtentSize     Size  `json:"vg_extent_size"`
 	ExtentCount    int64 `json:"vg_extent_count"`
@@ -45,6 +46,14 @@ func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
 		if val, ok := raw[key]; !ok {
 			continue
 		} else if err := json.Unmarshal(val, fieldPtr); err != nil {
+			return err
+		}
+	}
+
+	for key, fieldPtr := range map[string]*Tags{
+		"vg_tags": &vg.Tags,
+	} {
+		if err := unmarshalAndConvertToStrings(raw, key, (*[]string)(fieldPtr)); err != nil {
 			return err
 		}
 	}
@@ -115,10 +124,12 @@ func (opt VolumeGroupName) ApplyToVGExtendOptions(opts *VGExtendOptions) {
 func (opt VolumeGroupName) ApplyToVGRenameOptions(opts *VGRenameOptions) {
 	opts.SetOldOrNew(opt)
 }
+func (opt VolumeGroupName) ApplyToVGChangeOptions(opts *VGChangeOptions) {
+	opts.VolumeGroupName = opt
+}
 func (opt VolumeGroupName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 	opts.VolumeGroupName = opt
 }
-
 func (opt VolumeGroupName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
 	opts.VolumeGroupName = opt
 }

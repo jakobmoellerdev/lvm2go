@@ -8,6 +8,7 @@ import (
 )
 
 func TestVGRename(t *testing.T) {
+	t.Parallel()
 	FailTestIfNotRoot(t)
 
 	clnt := NewClient()

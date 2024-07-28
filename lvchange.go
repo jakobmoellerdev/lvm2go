@@ -52,7 +52,7 @@ func (c *client) LVChange(ctx context.Context, opts ...LVChangeOption) error {
 }
 
 func (list LVChangeOptionsList) AsArgs() (Arguments, error) {
-	args := NewArgs(ArgsTypeGeneric)
+	args := NewArgs(ArgsTypeLVChange)
 	options := LVChangeOptions{}
 	for _, opt := range list {
 		opt.ApplyToLVChangeOptions(&options)

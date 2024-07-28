@@ -8,6 +8,7 @@ import (
 )
 
 func TestLVExtend(t *testing.T) {
+	t.Parallel()
 	FailTestIfNotRoot(t)
 
 	clnt := NewClient()

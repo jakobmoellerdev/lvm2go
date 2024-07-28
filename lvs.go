@@ -7,6 +7,7 @@ import (
 type (
 	LVsOptions struct {
 		VolumeGroupName
+		LogicalVolumeName
 		Tags
 		Select
 
@@ -27,10 +28,10 @@ var (
 // LVs returns a list of logical volumes that match the given options.
 // If no logical volumes are found, nil is returned.
 // It is really just a wrapper around the `lvs --reportformat json` command.
-func (c *client) LVs(ctx context.Context, opts ...LVsOption) ([]LogicalVolume, error) {
+func (c *client) LVs(ctx context.Context, opts ...LVsOption) ([]*LogicalVolume, error) {
 	type lvReport struct {
 		Report []struct {
-			LV []LogicalVolume `json:"lv"`
+			LV []*LogicalVolume `json:"lv"`
 		} `json:"report"`
 	}
 
@@ -65,6 +66,39 @@ func (c *client) LVs(ctx context.Context, opts ...LVsOption) ([]LogicalVolume, e
 	}
 
 	return lvs, nil
+}
+
+func (c *client) LV(ctx context.Context, opts ...LVsOption) (*LogicalVolume, error) {
+	foundVG := false
+	foundLV := false
+	for _, opt := range opts {
+		if _, ok := opt.(VolumeGroupName); ok {
+			foundVG = true
+		}
+		if _, ok := opt.(LogicalVolumeName); ok {
+			foundLV = true
+		}
+		if foundVG && foundLV {
+			break
+		}
+	}
+	if !foundVG {
+		return nil, ErrVolumeGroupNameRequired
+	}
+	if !foundLV {
+		return nil, ErrLogicalVolumeNameRequired
+	}
+
+	lvs, err := c.LVs(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(lvs) == 0 {
+		return nil, ErrLogicalVolumeNotFound
+	}
+
+	return lvs[0], nil
 }
 
 func (opts *LVsOptions) ApplyToArgs(args Arguments) error {

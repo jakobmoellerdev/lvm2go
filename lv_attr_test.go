@@ -8,6 +8,7 @@ import (
 )
 
 func TestLVAttributes(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		raw string
 	}

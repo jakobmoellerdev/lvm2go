@@ -27,10 +27,10 @@ var (
 // PVs returns a list of logical volumes that match the given options.
 // If no logical volumes are found, nil is returned.
 // It is really just a wrapper around the `lvs --reportformat json` command.
-func (c *client) PVs(ctx context.Context, opts ...PVsOption) ([]PhysicalVolume, error) {
+func (c *client) PVs(ctx context.Context, opts ...PVsOption) ([]*PhysicalVolume, error) {
 	type lvReport struct {
 		Report []struct {
-			PV []PhysicalVolume `json:"pv"`
+			PV []*PhysicalVolume `json:"pv"`
 		} `json:"report"`
 	}
 
@@ -68,16 +68,16 @@ func (c *client) PVs(ctx context.Context, opts ...PVsOption) ([]PhysicalVolume, 
 }
 
 func (opts *PVsOptions) ApplyToArgs(args Arguments) error {
-	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
-		return err
-	}
 
-	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.ColumnOptions.ApplyToArgs(args); err != nil {
-		return err
+	for _, arg := range []Argument{
+		opts.VolumeGroupName,
+		opts.Tags,
+		opts.CommonOptions,
+		opts.ColumnOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
 	}
 
 	return nil
