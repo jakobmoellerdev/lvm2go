@@ -77,9 +77,13 @@ func IsContainerized(ctx context.Context) bool {
 			isContainerized = true
 		} else if _, err := os.Stat("/.containerenv"); err == nil {
 			isContainerized = true
+		} else if _, ok := os.LookupEnv("KUBERNETES_SERVICE_HOST"); ok {
+			isContainerized = true
+		} else if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+			isContainerized = true
 		}
 		if isContainerized {
-			slog.DebugContext(ctx, "lvm2go is running in docker environment")
+			slog.InfoContext(ctx, "lvm2go is running in docker environment")
 		}
 	})
 	return isContainerized
