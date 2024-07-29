@@ -107,6 +107,7 @@ func (opts *LVsOptions) ApplyToArgs(args Arguments) error {
 		opts.Tags,
 		opts.CommonOptions,
 		opts.ColumnOptions,
+		opts.Select,
 	} {
 		if err := arg.ApplyToArgs(args); err != nil {
 			return err

@@ -86,16 +86,16 @@ func (c *client) VG(ctx context.Context, opts ...VGsOption) (*VolumeGroup, error
 }
 
 func (opts *VGsOptions) ApplyToArgs(args Arguments) error {
-	if err := opts.VolumeGroupName.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.ColumnOptions.ApplyToArgs(args); err != nil {
-		return err
-	}
-
-	if err := opts.CommonOptions.ApplyToArgs(args); err != nil {
-		return err
+	for _, arg := range []Argument{
+		opts.VolumeGroupName,
+		opts.Tags,
+		opts.CommonOptions,
+		opts.ColumnOptions,
+		opts.Select,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
 	}
 
 	return nil
