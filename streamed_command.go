@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -17,20 +18,27 @@ func StreamedCommand(ctx context.Context, cmd *exec.Cmd) (io.ReadCloser, error) 
 	if err != nil {
 		return nil, err
 	}
+	stdoutClose := func() error {
+		return ignoreClosed(stdout.Close())
+	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, errors.Join(err, stdout.Close())
+		return nil, errors.Join(err, stdoutClose())
+	}
+	stderrClose := func() error {
+		return ignoreClosed(stderr.Close())
 	}
 
 	slog.DebugContext(ctx, "running command", slog.String("command", strings.Join(cmd.Args, " ")))
 
 	cmd.Cancel = func() error {
 		slog.WarnContext(ctx, "killing streamed command process due to ctx cancel")
-		return errors.Join(cmd.Process.Kill(), stdout.Close(), stderr.Close())
+
+		return errors.Join(cmd.Process.Kill(), stdoutClose(), stderrClose())
 	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, errors.Join(err, stdout.Close(), stderr.Close())
+		return nil, errors.Join(err, stdoutClose(), stderrClose())
 	}
 	// Return a read closer that will wait for the command to finish when closed to release all resources.
 	return commandReadCloser{cmd: cmd, ReadCloser: stdout, stderr: stderr}, nil
@@ -58,4 +66,11 @@ func (p commandReadCloser) Close() error {
 		return NewExitCodeError(err, stderr)
 	}
 	return nil
+}
+
+func ignoreClosed(err error) error {
+	if errors.Is(err, os.ErrClosed) {
+		return nil
+	}
+	return err
 }
