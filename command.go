@@ -83,7 +83,7 @@ func IsContainerized(ctx context.Context) bool {
 			isContainerized = true
 		}
 		if isContainerized {
-			slog.InfoContext(ctx, "lvm2go is running in docker environment")
+			slog.InfoContext(ctx, "lvm2go is running in container environment")
 		}
 	})
 	return isContainerized
