@@ -102,7 +102,7 @@ func TestLVs(t *testing.T) {
 				t.Fatalf("Expected volume group %s, got %s", infra.volumeGroup.Name, vg.Name)
 			}
 
-			pvs, err := clnt.PVs(ctx)
+			pvs, err := clnt.PVs(ctx, infra.volumeGroup.Name)
 			if err != nil {
 				t.Fatal(err)
 			}

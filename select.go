@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-const QuotationRune = '"'
-
 type Select string
 
 func (opt Select) ApplyToLVsOptions(opts *LVsOptions) {
@@ -15,11 +13,21 @@ func (opt Select) ApplyToLVsOptions(opts *LVsOptions) {
 func (opt Select) ApplyToVGsOptions(opts *VGsOptions) {
 	opts.Select = opt
 }
+func (opt Select) ApplyToPVsOptions(opts *PVsOptions) {
+	opts.Select = opt
+}
 func (opt Select) ApplyToVGRemoveOptions(opts *VGRemoveOptions) {
 	opts.Select = opt
 }
 func (opt Select) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 	opts.Select = opt
+}
+
+func (opt Select) ApplyToArgs(args Arguments) error {
+	if opt != "" {
+		args.AddOrReplace(fmt.Sprintf("--select=%s", string(opt)))
+	}
+	return nil
 }
 
 func NewMatchesAllSelector(fields map[string]string) Select {
@@ -39,13 +47,9 @@ func NewSelector(
 	last := len(fields) - 1
 	for field, value := range fields {
 		last--
-		sb.WriteRune(QuotationRune)
 		sb.WriteString(field)
-		sb.WriteRune(QuotationRune)
 		sb.WriteString(string(co))
-		sb.WriteRune(QuotationRune)
 		sb.WriteString(value)
-		sb.WriteRune(QuotationRune)
 		if last > 0 {
 			sb.WriteRune(' ')
 			sb.WriteString(string(lo))
@@ -80,6 +84,9 @@ func NewCombinedSelect(operator LogicalAndGroupingOperator, selects ...Select) S
 	var sb strings.Builder
 	last := len(selects) - 1
 	for i, sel := range selects {
+		if len(sel) == 0 {
+			continue
+		}
 		sb.WriteString(string(LeftParenthesis))
 		sb.WriteString(string(sel))
 		sb.WriteString(string(RightParenthesis))
