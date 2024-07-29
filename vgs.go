@@ -33,7 +33,7 @@ func (c *client) VGs(ctx context.Context, opts ...VGsOption) ([]*VolumeGroup, er
 	res := new(vgReport)
 
 	args := []string{
-		"vgs", "--units", "b", "--nosuffix", "--reportformat", "json",
+		"vgs", "--reportformat", "json",
 	}
 	argsFromOpts, err := VGsOptionsList(opts).AsArgs()
 	if err != nil {
