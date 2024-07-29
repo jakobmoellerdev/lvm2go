@@ -10,7 +10,7 @@ import (
 
 func Test_RawConfig(t *testing.T) {
 	t.Parallel()
-	FailTestIfNotRoot(t)
+	SkipOrFailTestIfNotRoot(t)
 	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	ctx := context.Background()

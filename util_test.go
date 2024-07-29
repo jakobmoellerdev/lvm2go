@@ -30,7 +30,7 @@ var sharedTestClientKey = struct{}{}
 
 var skipRootfulTests = flag.Bool("skip-rootful-tests", false, "Name of location to greet")
 
-func FailTestIfNotRoot(t *testing.T) {
+func SkipOrFailTestIfNotRoot(t *testing.T) {
 	if os.Geteuid() != 0 {
 		if *skipRootfulTests {
 			t.Skip("Skipping test because it requires root privileges to setup its environment.")

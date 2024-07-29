@@ -9,7 +9,7 @@ import (
 
 func TestLVExtend(t *testing.T) {
 	t.Parallel()
-	FailTestIfNotRoot(t)
+	SkipOrFailTestIfNotRoot(t)
 
 	clnt := NewClient()
 	ctx := context.Background()

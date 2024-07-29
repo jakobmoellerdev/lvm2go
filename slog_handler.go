@@ -40,7 +40,7 @@ func copySyncMap(m *sync.Map) *sync.Map {
 	return &cp
 }
 
-var _ slog.Handler = SlogHandler{}
+var _ slog.Handler = &ContextPropagatingSlogHandler{}
 
 type TestingHandler struct {
 	tb         testing.TB
@@ -57,7 +57,7 @@ func NewTestingHandler(tb testing.TB) slog.Handler {
 	}
 }
 
-func (h TestingHandler) Enabled(_ context.Context, l slog.Level) bool {
+func (h TestingHandler) Enabled(_ context.Context, _ slog.Level) bool {
 	return !h.tb.Skipped()
 }
 
@@ -112,21 +112,23 @@ func (h TestingHandler) printStack() bool {
 	return h.tb.Failed()
 }
 
-type SlogHandler struct {
+type ContextPropagatingSlogHandler struct {
 	handler slog.Handler
 }
 
+// NewContextPropagatingSlogHandler returns a new slog.Handler that propagates context values as slog attributes.
+// The handler is a wrapper around the provided handler.
 func NewContextPropagatingSlogHandler(handler slog.Handler) slog.Handler {
-	return SlogHandler{
+	return &ContextPropagatingSlogHandler{
 		handler: handler,
 	}
 }
 
-func (h SlogHandler) Enabled(ctx context.Context, level slog.Level) bool {
+func (h *ContextPropagatingSlogHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	return h.handler.Enabled(ctx, level)
 }
 
-func (h SlogHandler) Handle(ctx context.Context, record slog.Record) error {
+func (h *ContextPropagatingSlogHandler) Handle(ctx context.Context, record slog.Record) error {
 	if v, ok := ctx.Value(fields).(*sync.Map); ok {
 		v.Range(func(key, val any) bool {
 			if keyString, ok := key.(string); ok {
@@ -142,10 +144,10 @@ func (h SlogHandler) Handle(ctx context.Context, record slog.Record) error {
 	return h.handler.Handle(ctx, record)
 }
 
-func (h SlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return SlogHandler{h.handler.WithAttrs(attrs)}
+func (h *ContextPropagatingSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &ContextPropagatingSlogHandler{h.handler.WithAttrs(attrs)}
 }
 
-func (h SlogHandler) WithGroup(name string) slog.Handler {
-	return h.handler.WithGroup(name)
+func (h *ContextPropagatingSlogHandler) WithGroup(name string) slog.Handler {
+	return &ContextPropagatingSlogHandler{h.handler.WithGroup(name)}
 }

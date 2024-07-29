@@ -9,7 +9,7 @@ import (
 )
 
 func TestVGChange(t *testing.T) {
-	FailTestIfNotRoot(t)
+	SkipOrFailTestIfNotRoot(t)
 
 	clnt := NewClient()
 	ctx := context.Background()
