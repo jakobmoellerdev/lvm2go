@@ -13,7 +13,7 @@ import (
 
 func TestLVMDevices(t *testing.T) {
 	t.Parallel()
-	FailTestIfNotRoot(t)
+	SkipOrFailTestIfNotRoot(t)
 
 	_, err := exec.LookPath("lvmdevices")
 	if err != nil {

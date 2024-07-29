@@ -9,7 +9,7 @@ import (
 )
 
 func Test_Version(t *testing.T) {
-	FailTestIfNotRoot(t)
+	SkipOrFailTestIfNotRoot(t)
 	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	ctx := context.Background()

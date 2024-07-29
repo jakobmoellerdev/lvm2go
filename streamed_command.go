@@ -2,9 +2,11 @@ package lvm2go
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os/exec"
+	"strings"
 )
 
 // StreamedCommand runs the command and returns the stdout as a ReadCloser that also Waits for the command to finish.
@@ -17,27 +19,18 @@ func StreamedCommand(ctx context.Context, cmd *exec.Cmd) (io.ReadCloser, error) 
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		_ = stdout.Close()
-		return nil, err
+		return nil, errors.Join(err, stdout.Close())
 	}
 
-	slog.DebugContext(ctx, "invoking command", "args", cmd.Args, "env", cmd.Env, "pwd", cmd.Dir)
+	slog.DebugContext(ctx, "running command", slog.String("command", strings.Join(cmd.Args, " ")))
 
 	cmd.Cancel = func() error {
 		slog.WarnContext(ctx, "killing streamed command process due to ctx cancel")
-		if err := stdout.Close(); err != nil {
-			return err
-		}
-		if err := stderr.Close(); err != nil {
-			return err
-		}
-		return cmd.Process.Kill()
+		return errors.Join(cmd.Process.Kill(), stdout.Close(), stderr.Close())
 	}
 
 	if err := cmd.Start(); err != nil {
-		_ = stdout.Close()
-		_ = stderr.Close()
-		return nil, err
+		return nil, errors.Join(err, stdout.Close(), stderr.Close())
 	}
 	// Return a read closer that will wait for the command to finish when closed to release all resources.
 	return commandReadCloser{cmd: cmd, ReadCloser: stdout, stderr: stderr}, nil

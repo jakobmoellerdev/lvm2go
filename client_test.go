@@ -10,7 +10,7 @@ import (
 )
 
 func TestLVs(t *testing.T) {
-	FailTestIfNotRoot(t)
+	SkipOrFailTestIfNotRoot(t)
 	ctx := WithCustomEnvironment(context.Background(), map[string]string{})
 	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -63,7 +63,7 @@ func TestLVs(t *testing.T) {
 		},
 	} {
 		t.Run(fmt.Sprintf("[%v]%s", i, tc.String()), func(t *testing.T) {
-			FailTestIfNotRoot(t)
+			SkipOrFailTestIfNotRoot(t)
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			clnt := GetTestClient(ctx)
