@@ -9,6 +9,7 @@ type (
 		VolumeGroupName
 		LogicalVolumeName
 		Tags
+		Unit
 		Select
 
 		ColumnOptions
@@ -105,6 +106,7 @@ func (opts *LVsOptions) ApplyToArgs(args Arguments) error {
 	for _, arg := range []Argument{
 		opts.VolumeGroupName,
 		opts.Tags,
+		opts.Unit,
 		opts.CommonOptions,
 		opts.ColumnOptions,
 		opts.Select,

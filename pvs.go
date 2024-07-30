@@ -6,6 +6,7 @@ import (
 
 type (
 	PVsOptions struct {
+		Unit
 		Tags
 		Select
 
@@ -68,6 +69,7 @@ func (c *client) PVs(ctx context.Context, opts ...PVsOption) ([]*PhysicalVolume,
 
 func (opts *PVsOptions) ApplyToArgs(args Arguments) error {
 	for _, arg := range []Argument{
+		opts.Unit,
 		opts.Tags,
 		opts.CommonOptions,
 		opts.ColumnOptions,

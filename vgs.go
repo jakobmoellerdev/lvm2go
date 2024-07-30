@@ -8,6 +8,7 @@ type (
 	VGsOptions struct {
 		VolumeGroupName
 		Tags
+		Unit
 		Select
 
 		ColumnOptions
@@ -89,6 +90,7 @@ func (opts *VGsOptions) ApplyToArgs(args Arguments) error {
 	for _, arg := range []Argument{
 		opts.VolumeGroupName,
 		opts.Tags,
+		opts.Unit,
 		opts.CommonOptions,
 		opts.ColumnOptions,
 		opts.Select,
