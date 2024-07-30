@@ -3,6 +3,7 @@ package lvm2go
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"slices"
 	"strconv"
@@ -46,6 +47,43 @@ func (unit Unit) String() string {
 
 func (unit Unit) MarshalText() ([]byte, error) {
 	return []byte(unit.String()), nil
+}
+
+func (unit Unit) ApplyToArgs(args Arguments) error {
+	if unit == 0 {
+		return nil
+	}
+
+	if err := unit.Validate(); err != nil {
+		return err
+	}
+
+	args.AddOrReplace(fmt.Sprintf("--units=%s", unit.String()))
+
+	return nil
+}
+
+func (unit Unit) Validate() error {
+	var ok bool
+	for _, valid := range validUnits {
+		if valid == unit || strings.ToUpper(string(valid)) == string(unit) {
+			ok = true
+		}
+	}
+	if !ok {
+		return fmt.Errorf("%w: %s is not a valid unit", ErrInvalidUnit, unit)
+	}
+	return nil
+}
+
+func (unit Unit) ApplyToLVsOptions(opts *LVsOptions) {
+	opts.Unit = unit
+}
+func (unit Unit) ApplyToVGsOptions(opts *VGsOptions) {
+	opts.Unit = unit
+}
+func (unit Unit) ApplyToPVsOptions(opts *PVsOptions) {
+	opts.Unit = unit
 }
 
 const (
@@ -226,6 +264,11 @@ func ParseSize(str string) (Size, error) {
 
 	if !IsUnitOrDigit(unit) {
 		return InvalidSize, fmt.Errorf("%w: %s is neither a valid unit nor a digit", ErrInvalidUnit, unit)
+	}
+
+	if prefix := str[0]; prefix == '<' || prefix == '>' {
+		slog.Warn("size string starts with '<' or '>', this is not supported by lvm2go without losing precision, specify the unit explicitly if possible", slog.String("size", str))
+		str = str[1:]
 	}
 
 	fval, err := strconv.ParseFloat(str[:len(str)-offset], 64)
