@@ -2,15 +2,17 @@ package lvm2go
 
 import (
 	"encoding/json"
-	"errors"
 )
 
-var ErrPhysicalVolumeNameRequired = errors.New("PhysicalVolumeName is required for a fully qualified physical volume")
+// PhysicalVolumeNameUnknown is a placeholder for an unknown physical volume name used by lvm2
+// in case of failure to retrieve the name.
+const PhysicalVolumeNameUnknown = PhysicalVolumeName("[unknown]")
 
 type PhysicalVolume struct {
 	UUID         string             `json:"pv_uuid"`
 	Name         PhysicalVolumeName `json:"pv_name"`
 	DevSize      Size               `json:"dev_size"`
+	Attr         PVAttributes       `json:"pv_attr"`
 	Major        int64              `json:"pv_major"`
 	Minor        int64              `json:"pv_minor"`
 	MdaFree      Size               `json:"pv_mda_free"`
@@ -49,7 +51,7 @@ func (pv *PhysicalVolume) UnmarshalJSON(data []byte) error {
 	for key, fieldPtr := range map[string]*Tags{
 		"pv_tags": &pv.Tags,
 	} {
-		if err := unmarshalAndConvertToStrings(raw, key, (*[]string)(fieldPtr)); err != nil {
+		if err := unmarshalToStringAndParseCommaSeparatedStrings(raw, key, (*[]string)(fieldPtr)); err != nil {
 			return err
 		}
 	}
@@ -63,7 +65,7 @@ func (pv *PhysicalVolume) UnmarshalJSON(data []byte) error {
 		"pv_mda_size": &pv.MdaSize,
 		"pe_start":    &pv.PeStart,
 	} {
-		if err := unmarshalAndConvertToSize(raw, key, fieldPtr); err != nil {
+		if err := unmarshalToStringAndParse(raw, key, fieldPtr, ParseSizeLenient); err != nil {
 			return err
 		}
 	}
@@ -74,12 +76,12 @@ func (pv *PhysicalVolume) UnmarshalJSON(data []byte) error {
 		"pv_mda_count":      &pv.MdaCount,
 		"pv_mda_used_count": &pv.MdaUsedCount,
 	} {
-		if err := unmarshalAndConvertToInt64(raw, key, fieldPtr); err != nil {
+		if err := unmarshalToStringAndParseInt64(raw, key, fieldPtr); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return unmarshalToStringAndParse(raw, "pv_attr", &pv.Attr, ParsePVAttributes)
 }
 
 type PhysicalVolumeName string

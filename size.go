@@ -251,9 +251,17 @@ func MustParseSize(str string) Size {
 	return size
 }
 
+func ParseSizeLenient(str string) (Size, error) {
+	eval := strings.TrimSpace(str)
+	if len(eval) == 0 || eval == "0" {
+		return Size{Val: 0, Unit: UnitBytes}, nil
+	}
+	return ParseSize(str)
+}
+
 func ParseSize(str string) (Size, error) {
 	if len(str) == 0 {
-		return Size{Unit: UnitUnknown}, nil
+		return Size{Val: 0, Unit: UnitUnknown}, nil
 	}
 
 	var unit Unit

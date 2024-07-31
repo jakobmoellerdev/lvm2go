@@ -62,7 +62,7 @@ func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
 	for key, fieldPtr := range map[string]*Tags{
 		"vg_tags": &vg.Tags,
 	} {
-		if err := unmarshalAndConvertToStrings(raw, key, (*[]string)(fieldPtr)); err != nil {
+		if err := unmarshalToStringAndParseCommaSeparatedStrings(raw, key, (*[]string)(fieldPtr)); err != nil {
 			return err
 		}
 	}
@@ -79,7 +79,7 @@ func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
 		"vg_mda_used_count":   &vg.MDAUsedCount,
 		"vg_seqno":            &vg.SeqNo,
 	} {
-		if err := unmarshalAndConvertToInt64(raw, key, fieldPtr); err != nil {
+		if err := unmarshalToStringAndParseInt64(raw, key, fieldPtr); err != nil {
 			return err
 		}
 	}
@@ -91,12 +91,12 @@ func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
 		"vg_mda_free":    &vg.MDAFree,
 		"vg_mda_size":    &vg.MDASize,
 	} {
-		if err := unmarshalAndConvertToSize(raw, key, fieldPtr); err != nil {
+		if err := unmarshalToStringAndParse(raw, key, fieldPtr, ParseSizeLenient); err != nil {
 			return err
 		}
 	}
 
-	return unmarshalAndConvertToVGAttributes(raw, "vg_attr", &vg.Attr)
+	return unmarshalToStringAndParse(raw, "vg_attr", &vg.Attr, ParseVGAttributes)
 }
 
 type VolumeGroupName string
