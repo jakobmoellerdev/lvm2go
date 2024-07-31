@@ -112,3 +112,24 @@ func unmarshalAndConvertToLVAttributes(raw map[string]json.RawMessage, key strin
 	*fieldPtr = attrs
 	return nil
 }
+
+func unmarshalAndConvertToVGAttributes(raw map[string]json.RawMessage, key string, fieldPtr *VGAttributes) error {
+	if raw[key] == nil || len(raw[key]) == 0 {
+		*fieldPtr = VGAttributes{}
+		return nil
+	}
+	var str string
+	if err := json.Unmarshal(raw[key], &str); err != nil {
+		return err
+	}
+	if str == "" {
+		*fieldPtr = VGAttributes{}
+		return nil
+	}
+	attrs, err := ParseVGAttributes(str)
+	if err != nil {
+		return err
+	}
+	*fieldPtr = attrs
+	return nil
+}
