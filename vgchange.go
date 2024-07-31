@@ -9,6 +9,8 @@ type (
 	VGChangeOptions struct {
 		VolumeGroupName
 
+		MaximumLogicalVolumes
+		MaximumPhysicalVolumes
 		AutoActivation
 		Tags
 		DelTags
@@ -36,7 +38,7 @@ func (c *client) VGChange(ctx context.Context, opts ...VGChangeOption) error {
 }
 
 func (list VGChangeOptionsList) AsArgs() (Arguments, error) {
-	args := NewArgs(ArgsTypeVGCreate)
+	args := NewArgs(ArgsTypeVGChange)
 	options := VGChangeOptions{}
 	for _, opt := range list {
 		opt.ApplyToVGChangeOptions(&options)
@@ -54,9 +56,11 @@ func (opts *VGChangeOptions) ApplyToArgs(args Arguments) error {
 
 	for _, opt := range []Argument{
 		opts.VolumeGroupName,
+		opts.MaximumLogicalVolumes,
+		opts.MaximumPhysicalVolumes,
+		opts.AutoActivation,
 		opts.Tags,
 		opts.DelTags,
-		opts.AutoActivation,
 		opts.CommonOptions,
 	} {
 		if err := opt.ApplyToArgs(args); err != nil {
