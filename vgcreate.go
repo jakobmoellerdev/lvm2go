@@ -19,6 +19,9 @@ type (
 		Force
 		Zero
 		PhysicalExtentSize
+		DataAlignment
+		DataAlignmentOffset
+		MetadataSize
 		AllocationPolicy
 
 		CommonOptions
@@ -73,6 +76,9 @@ func (opts *VGCreateOptions) ApplyToArgs(args Arguments) error {
 		opts.Force,
 		opts.Zero,
 		opts.PhysicalExtentSize,
+		opts.DataAlignment,
+		opts.DataAlignmentOffset,
+		opts.MetadataSize,
 		opts.AllocationPolicy,
 		opts.AutoActivation,
 		opts.CommonOptions,

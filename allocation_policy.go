@@ -1,5 +1,9 @@
 package lvm2go
 
+import (
+	"fmt"
+)
+
 type AllocationPolicy string
 
 const (
@@ -14,11 +18,20 @@ const (
 func (opt AllocationPolicy) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.AllocationPolicy = opt
 }
+func (opt AllocationPolicy) ApplyToLVChangeOptions(opts *LVCreateOptions) {
+	opts.AllocationPolicy = opt
+}
+func (opt AllocationPolicy) ApplyToVGChangeOptions(opts *VGChangeOptions) {
+	opts.AllocationPolicy = opt
+}
+func (opt AllocationPolicy) ApplyToVGCreateOptions(opts *VGCreateOptions) {
+	opts.AllocationPolicy = opt
+}
 
 func (opt AllocationPolicy) ApplyToArgs(args Arguments) error {
 	if opt == "" {
 		return nil
 	}
-	args.AddOrReplaceAll([]string{"--alloc", string(opt)})
+	args.AddOrReplace(fmt.Sprintf("--alloc=%s", string(opt)))
 	return nil
 }
