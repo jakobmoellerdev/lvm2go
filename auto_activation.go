@@ -22,3 +22,7 @@ func (opt AutoActivation) ApplyToArgs(args Arguments) error {
 	args.AddOrReplace(fmt.Sprintf("--setautoactivation=%s", string(opt)))
 	return nil
 }
+
+func (opt AutoActivation) ApplyToVGChangeOptions(opts *VGChangeOptions) {
+	opts.AutoActivation = opt
+}
