@@ -30,10 +30,13 @@ var prefixCandidates = []SizePrefix{
 }
 
 const (
-	sizeArg             = "--size"
-	poolMetadataSizeArg = "--poolmetadatasize"
-	virtualSizeArg      = "--virtualsize"
-	chunkSizeArg        = "--chunksize"
+	sizeArg                = "--size"
+	metadataSizeArg        = "--metadatasize"
+	poolMetadataSizeArg    = "--poolmetadatasize"
+	virtualSizeArg         = "--virtualsize"
+	chunkSizeArg           = "--chunksize"
+	dataAlignmentArg       = "--dataalignment"
+	dataAlignmentOffsetArg = "--dataalignmentoffset"
 )
 
 type Unit rune
@@ -450,4 +453,34 @@ func (opt ChunkSize) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 
 func (opt ChunkSize) ApplyToArgs(args Arguments) error {
 	return Size(opt).applyToArgs(chunkSizeArg, args)
+}
+
+type DataAlignment Size
+
+func (opt DataAlignment) ApplyToVGCreateOptions(opts *VGCreateOptions) {
+	opts.DataAlignment = opt
+}
+
+func (opt DataAlignment) ApplyToArgs(args Arguments) error {
+	return Size(opt).applyToArgs(dataAlignmentArg, args)
+}
+
+type DataAlignmentOffset Size
+
+func (opt DataAlignmentOffset) ApplyToVGCreateOptions(opts *VGCreateOptions) {
+	opts.DataAlignmentOffset = opt
+}
+
+func (opt DataAlignmentOffset) ApplyToArgs(args Arguments) error {
+	return Size(opt).applyToArgs(dataAlignmentOffsetArg, args)
+}
+
+type MetadataSize Size
+
+func (opt MetadataSize) ApplyToVGCreateOptions(opts *VGCreateOptions) {
+	opts.MetadataSize = opt
+}
+
+func (opt MetadataSize) ApplyToArgs(args Arguments) error {
+	return Size(opt).applyToArgs(metadataSizeArg, args)
 }
