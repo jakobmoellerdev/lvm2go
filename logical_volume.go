@@ -57,7 +57,7 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 	for key, fieldPtr := range map[string]*Tags{
 		"lv_tags": &lv.Tags,
 	} {
-		if err := unmarshalAndConvertToStrings(raw, key, (*[]string)(fieldPtr)); err != nil {
+		if err := unmarshalToStringAndParseCommaSeparatedStrings(raw, key, (*[]string)(fieldPtr)); err != nil {
 			return err
 		}
 	}
@@ -66,7 +66,7 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		"lv_kernel_major": &lv.Major,
 		"lv_kernel_minor": &lv.Minor,
 	} {
-		if err := unmarshalAndConvertToInt64(raw, key, fieldPtr); err != nil {
+		if err := unmarshalToStringAndParseInt64(raw, key, fieldPtr); err != nil {
 			return err
 		}
 	}
@@ -75,7 +75,7 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		"data_percent":     &lv.DataPercent,
 		"metadata_percent": &lv.MetadataPercent,
 	} {
-		if err := unmarshalAndConvertToFloat64(raw, key, fieldPtr); err != nil {
+		if err := unmarshalToStringAndParseFloat64(raw, key, fieldPtr); err != nil {
 			return err
 		}
 	}
@@ -84,12 +84,12 @@ func (lv *LogicalVolume) UnmarshalJSON(data []byte) error {
 		"lv_size":     &lv.Size,
 		"origin_size": &lv.OriginSize,
 	} {
-		if err := unmarshalAndConvertToSize(raw, key, fieldPtr); err != nil {
+		if err := unmarshalToStringAndParse(raw, key, fieldPtr, ParseSizeLenient); err != nil {
 			return err
 		}
 	}
 
-	return unmarshalAndConvertToLVAttributes(raw, "lv_attr", &lv.Attr)
+	return unmarshalToStringAndParse(raw, "lv_attr", &lv.Attr, ParseLVAttributes)
 }
 
 func (lv *LogicalVolume) GetFQLogicalVolumeName() (*FQLogicalVolumeName, error) {

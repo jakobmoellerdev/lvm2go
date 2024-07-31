@@ -6,53 +6,35 @@ import (
 	"strings"
 )
 
-func unmarshalAndConvertToStrings(raw map[string]json.RawMessage, key string, fieldPtr *[]string) error {
-	if raw[key] == nil || len(raw[key]) == 0 {
-		*fieldPtr = nil
-		return nil
-	}
-
-	var str string
-	if err := json.Unmarshal(raw[key], &str); err != nil {
-		return err
-	}
-
-	if len(str) > 0 {
-		*fieldPtr = strings.Split(str, ",")
-	}
-
-	return nil
+func unmarshalToStringAndParseCommaSeparatedStrings(raw map[string]json.RawMessage, key string, fieldPtr *[]string) error {
+	return unmarshalToStringAndParse(raw, key, fieldPtr, func(str string) ([]string, error) {
+		if len(str) > 0 {
+			return strings.Split(str, ","), nil
+		}
+		return nil, nil
+	})
 }
 
-func unmarshalAndConvertToSize(raw map[string]json.RawMessage, key string, fieldPtr *Size) error {
-	val, ok := raw[key]
-	if !ok || val == nil || len(val) == 0 {
-		*fieldPtr = NewSize(0, UnitBytes)
-		return nil
-	}
-	var str string
-	if err := json.Unmarshal(val, &str); err != nil {
-		return err
-	}
-	str = strings.TrimSpace(str)
-	if str == "" {
-		*fieldPtr = NewSize(0, UnitBytes)
-		return nil
-	}
-
-	size, err := ParseSize(str)
-	if err != nil {
-		return err
-	}
-
-	*fieldPtr = size
-
-	return nil
+func unmarshalToStringAndParseInt64(raw map[string]json.RawMessage, key string, fieldPtr *int64) error {
+	return unmarshalToStringAndParse(raw, key, fieldPtr, func(str string) (int64, error) {
+		return strconv.ParseInt(str, 10, 64)
+	})
 }
 
-func unmarshalAndConvertToInt64(raw map[string]json.RawMessage, key string, fieldPtr *int64) error {
+func unmarshalToStringAndParseFloat64(raw map[string]json.RawMessage, key string, fieldPtr *float64) error {
+	return unmarshalToStringAndParse(raw, key, fieldPtr, func(str string) (float64, error) {
+		return strconv.ParseFloat(str, 64)
+	})
+}
+
+func unmarshalToStringAndParse[T any](
+	raw map[string]json.RawMessage,
+	key string,
+	fieldPtr *T,
+	parse func(str string) (T, error),
+) error {
 	if raw[key] == nil || len(raw[key]) == 0 {
-		*fieldPtr = 0
+		*fieldPtr = *new(T)
 		return nil
 	}
 	var str string
@@ -60,73 +42,10 @@ func unmarshalAndConvertToInt64(raw map[string]json.RawMessage, key string, fiel
 		return err
 	}
 	if str == "" {
-		*fieldPtr = 0
+		*fieldPtr = *new(T)
 		return nil
 	}
-	val, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return err
-	}
-	*fieldPtr = val
-	return nil
-}
-
-func unmarshalAndConvertToFloat64(raw map[string]json.RawMessage, key string, fieldPtr *float64) error {
-	if raw[key] == nil || len(raw[key]) == 0 {
-		*fieldPtr = 0
-		return nil
-	}
-	var str string
-	if err := json.Unmarshal(raw[key], &str); err != nil {
-		return err
-	}
-	if str == "" {
-		*fieldPtr = 0
-		return nil
-	}
-	val, err := strconv.ParseFloat(str, 64)
-	if err != nil {
-		return err
-	}
-	*fieldPtr = val
-	return nil
-}
-
-func unmarshalAndConvertToLVAttributes(raw map[string]json.RawMessage, key string, fieldPtr *LVAttributes) error {
-	if raw[key] == nil || len(raw[key]) == 0 {
-		*fieldPtr = LVAttributes{}
-		return nil
-	}
-	var str string
-	if err := json.Unmarshal(raw[key], &str); err != nil {
-		return err
-	}
-	if str == "" {
-		*fieldPtr = LVAttributes{}
-		return nil
-	}
-	attrs, err := ParseLVAttributes(str)
-	if err != nil {
-		return err
-	}
-	*fieldPtr = attrs
-	return nil
-}
-
-func unmarshalAndConvertToVGAttributes(raw map[string]json.RawMessage, key string, fieldPtr *VGAttributes) error {
-	if raw[key] == nil || len(raw[key]) == 0 {
-		*fieldPtr = VGAttributes{}
-		return nil
-	}
-	var str string
-	if err := json.Unmarshal(raw[key], &str); err != nil {
-		return err
-	}
-	if str == "" {
-		*fieldPtr = VGAttributes{}
-		return nil
-	}
-	attrs, err := ParseVGAttributes(str)
+	attrs, err := parse(str)
 	if err != nil {
 		return err
 	}
