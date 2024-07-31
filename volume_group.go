@@ -5,28 +5,34 @@ import (
 )
 
 type VolumeGroup struct {
-	UUID         string          `json:"vg_uuid"`
-	Name         VolumeGroupName `json:"vg_name"`
-	SysID        string          `json:"vg_sysid"`
-	LockType     string          `json:"vg_lock_type"`
-	LockArgs     string          `json:"vg_lock_args"`
-	VGAttributes string          `json:"vg_attr"`
-	Tags         Tags            `json:"vg_tags"`
+	UUID     string          `json:"vg_uuid"`
+	Name     VolumeGroupName `json:"vg_name"`
+	SysID    string          `json:"vg_sysid"`
+	LockType string          `json:"vg_lock_type"`
+	LockArgs string          `json:"vg_lock_args"`
+	Attr     VGAttributes    `json:"vg_attr"`
+	Tags     Tags            `json:"vg_tags"`
 
-	ExtentSize     Size  `json:"vg_extent_size"`
-	ExtentCount    int64 `json:"vg_extent_count"`
-	SeqNo          int64 `json:"vg_seqno"`
-	Size           Size  `json:"vg_size"`
-	Free           Size  `json:"vg_free"`
-	PvCount        int64 `json:"pv_count"`
-	MissingPVCount int64 `json:"missing_pv_count"`
-	MaxPv          int64 `json:"max_pv"`
-	LvCount        int64 `json:"lv_count"`
-	MaxLv          int64 `json:"max_lv"`
-	SnapCount      int64 `json:"snap_count"`
-	MDACount       int64 `json:"mda_count"`
-	MDAUsedCount   int64 `json:"mda_used_count"`
-	MDACopies      int64 `json:"mda_copies"`
+	AutoActivation   AutoActivationFromReport `json:"vg_autoactivation"`
+	Extendable       Extendable               `json:"vg_extendable"`
+	Permissions      string                   `json:"vg_permissions"`
+	AllocationPolicy AllocationPolicy         `json:"vg_allocation_policy"`
+	ExtentSize       Size                     `json:"vg_extent_size"`
+	ExtentCount      int64                    `json:"vg_extent_count"`
+	SeqNo            int64                    `json:"vg_seqno"`
+	Size             Size                     `json:"vg_size"`
+	Free             Size                     `json:"vg_free"`
+	FreeCount        int64                    `json:"vg_free_count"`
+	PvCount          int64                    `json:"pv_count"`
+	MissingPVCount   int64                    `json:"vg_missing_pv_count"`
+	MaxPv            int64                    `json:"max_pv"`
+	LvCount          int64                    `json:"lv_count"`
+	MaxLv            int64                    `json:"max_lv"`
+	SnapCount        int64                    `json:"snap_count"`
+	MDACount         int64                    `json:"vg_mda_count"`
+	MDAUsedCount     int64                    `json:"vg_mda_used_count"`
+	MDAFree          Size                     `json:"vg_mda_free"`
+	MDASize          Size                     `json:"vg_mda_size"`
 }
 
 func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
@@ -36,12 +42,15 @@ func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
 	}
 
 	for key, fieldPtr := range map[string]*string{
-		"vg_uuid":      &vg.UUID,
-		"vg_name":      (*string)(&vg.Name),
-		"vg_sysid":     &vg.SysID,
-		"vg_lock_type": &vg.LockType,
-		"vg_lock_args": &vg.LockArgs,
-		"vg_attr":      &vg.VGAttributes,
+		"vg_uuid":              &vg.UUID,
+		"vg_name":              (*string)(&vg.Name),
+		"vg_sysid":             &vg.SysID,
+		"vg_lock_type":         &vg.LockType,
+		"vg_lock_args":         &vg.LockArgs,
+		"vg_permissions":       &vg.Permissions,
+		"vg_autoactivation":    (*string)(&vg.AutoActivation),
+		"vg_extendable":        (*string)(&vg.Extendable),
+		"vg_allocation_policy": (*string)(&vg.AllocationPolicy),
 	} {
 		if val, ok := raw[key]; !ok {
 			continue
@@ -59,17 +68,16 @@ func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
 	}
 
 	for key, fieldPtr := range map[string]*int64{
-		"vg_extent_count":  &vg.ExtentCount,
-		"pv_count":         &vg.PvCount,
-		"missing_pv_count": &vg.MissingPVCount,
-		"max_pv":           &vg.MaxPv,
-		"lv_count":         &vg.LvCount,
-		"max_lv":           &vg.MaxLv,
-		"snap_count":       &vg.SnapCount,
-		"mda_count":        &vg.MDACount,
-		"mda_used_count":   &vg.MDAUsedCount,
-		"mda_copies":       &vg.MDACopies,
-		"vg_seqno":         &vg.SeqNo,
+		"vg_extent_count":     &vg.ExtentCount,
+		"pv_count":            &vg.PvCount,
+		"vg_missing_pv_count": &vg.MissingPVCount,
+		"max_pv":              &vg.MaxPv,
+		"lv_count":            &vg.LvCount,
+		"max_lv":              &vg.MaxLv,
+		"snap_count":          &vg.SnapCount,
+		"vg_mda_count":        &vg.MDACount,
+		"vg_mda_used_count":   &vg.MDAUsedCount,
+		"vg_seqno":            &vg.SeqNo,
 	} {
 		if err := unmarshalAndConvertToInt64(raw, key, fieldPtr); err != nil {
 			return err
@@ -80,13 +88,15 @@ func (vg *VolumeGroup) UnmarshalJSON(data []byte) error {
 		"vg_size":        &vg.Size,
 		"vg_free":        &vg.Free,
 		"vg_extent_size": &vg.ExtentSize,
+		"vg_mda_free":    &vg.MDAFree,
+		"vg_mda_size":    &vg.MDASize,
 	} {
 		if err := unmarshalAndConvertToSize(raw, key, fieldPtr); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return unmarshalAndConvertToVGAttributes(raw, "vg_attr", &vg.Attr)
 }
 
 type VolumeGroupName string

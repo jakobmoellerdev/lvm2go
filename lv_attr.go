@@ -54,29 +54,29 @@ const (
 	VolumeTypeNone                       VolumeType = '-'
 )
 
-type Permissions rune
+type LVPermissions rune
 
 const (
-	PermissionsWriteable                             Permissions = 'w'
-	PermissionsReadOnly                              Permissions = 'r'
-	PermissionsReadOnlyActivationOfNonReadOnlyVolume Permissions = 'R'
-	PermissionsNone                                  Permissions = '-'
+	LVPermissionsWriteable                             LVPermissions = 'w'
+	LVPermissionsReadOnly                              LVPermissions = 'r'
+	LVPermissionsReadOnlyActivationOfNonReadOnlyVolume LVPermissions = 'R'
+	LVPermissionsNone                                  LVPermissions = '-'
 )
 
-type AllocationPolicyAttr rune
+type LVAllocationPolicyAttr rune
 
 const (
-	AllocationPolicyAttrAnywhere         AllocationPolicyAttr = 'a'
-	AllocationPolicyAttrAnywhereLocked   AllocationPolicyAttr = 'A'
-	AllocationPolicyAttrContiguous       AllocationPolicyAttr = 'c'
-	AllocationPolicyAttrContiguousLocked AllocationPolicyAttr = 'C'
-	AllocationPolicyAttrInherited        AllocationPolicyAttr = 'i'
-	AllocationPolicyAttrInheritedLocked  AllocationPolicyAttr = 'I'
-	AllocationPolicyAttrCling            AllocationPolicyAttr = 'l'
-	AllocationPolicyAttrClingLocked      AllocationPolicyAttr = 'L'
-	AllocationPolicyAttrNormal           AllocationPolicyAttr = 'n'
-	AllocationPolicyAttrNormalLocked     AllocationPolicyAttr = 'N'
-	AllocationPolicyAttrNone                                  = '-'
+	LVAllocationPolicyAttrAnywhere         LVAllocationPolicyAttr = 'a'
+	LVAllocationPolicyAttrAnywhereLocked   LVAllocationPolicyAttr = 'A'
+	LVAllocationPolicyAttrContiguous       LVAllocationPolicyAttr = 'c'
+	LVAllocationPolicyAttrContiguousLocked LVAllocationPolicyAttr = 'C'
+	LVAllocationPolicyAttrInherited        LVAllocationPolicyAttr = 'i'
+	LVAllocationPolicyAttrInheritedLocked  LVAllocationPolicyAttr = 'I'
+	LVAllocationPolicyAttrCling            LVAllocationPolicyAttr = 'l'
+	LVAllocationPolicyAttrClingLocked      LVAllocationPolicyAttr = 'L'
+	LVAllocationPolicyAttrNormal           LVAllocationPolicyAttr = 'n'
+	LVAllocationPolicyAttrNormalLocked     LVAllocationPolicyAttr = 'N'
+	LVAllocationPolicyAttrNone                                    = '-'
 )
 
 type Minor rune
@@ -160,8 +160,8 @@ const (
 // from the Attributes, e.g. for determining whether an LV is considered a Thin-Pool or not.
 type LVAttributes struct {
 	VolumeType
-	Permissions
-	AllocationPolicyAttr
+	LVPermissions
+	LVAllocationPolicyAttr
 	Minor
 	State
 	Open
@@ -177,8 +177,8 @@ func ParseLVAttributes(raw string) (LVAttributes, error) {
 	}
 	return LVAttributes{
 		VolumeType(raw[0]),
-		Permissions(raw[1]),
-		AllocationPolicyAttr(raw[2]),
+		LVPermissions(raw[1]),
+		LVAllocationPolicyAttr(raw[2]),
 		Minor(raw[3]),
 		State(raw[4]),
 		Open(raw[5]),
@@ -189,19 +189,19 @@ func ParseLVAttributes(raw string) (LVAttributes, error) {
 	}, nil
 }
 
-func (l LVAttributes) String() string {
+func (attr LVAttributes) String() string {
 	var builder strings.Builder
 	fields := []rune{
-		rune(l.VolumeType),
-		rune(l.Permissions),
-		rune(l.AllocationPolicyAttr),
-		rune(l.Minor),
-		rune(l.State),
-		rune(l.Open),
-		rune(l.OpenTarget),
-		rune(l.ZeroAttr),
-		rune(l.VolumeHealth),
-		rune(l.SkipActivation),
+		rune(attr.VolumeType),
+		rune(attr.LVPermissions),
+		rune(attr.LVAllocationPolicyAttr),
+		rune(attr.Minor),
+		rune(attr.State),
+		rune(attr.Open),
+		rune(attr.OpenTarget),
+		rune(attr.ZeroAttr),
+		rune(attr.VolumeHealth),
+		rune(attr.SkipActivation),
 	}
 	builder.Grow(len(fields))
 	for _, r := range fields {
@@ -210,26 +210,26 @@ func (l LVAttributes) String() string {
 	return builder.String()
 }
 
-func (l LVAttributes) MarshalText() ([]byte, error) {
-	return []byte(l.String()), nil
+func (attr LVAttributes) MarshalText() ([]byte, error) {
+	return []byte(attr.String()), nil
 }
 
 // VerifyHealth checks the health of the logical volume based on the attributes, mainly
 // bit 9 (volume health indicator) based on bit 1 (volume type indicator)
 // All failed known states are reported with an error message.
-func (l LVAttributes) VerifyHealth() error {
-	if l.VolumeHealth == VolumeHealthPartialActivation {
+func (attr LVAttributes) VerifyHealth() error {
+	if attr.VolumeHealth == VolumeHealthPartialActivation {
 		return ErrPartialActivation
 	}
-	if l.VolumeHealth == VolumeHealthUnknown {
+	if attr.VolumeHealth == VolumeHealthUnknown {
 		return ErrUnknownVolumeHealth
 	}
-	if l.VolumeHealth == VolumeHealthWriteCacheError {
+	if attr.VolumeHealth == VolumeHealthWriteCacheError {
 		return ErrWriteCacheError
 	}
 
-	if l.VolumeType == VolumeTypeThinPool {
-		switch l.VolumeHealth {
+	if attr.VolumeType == VolumeTypeThinPool {
+		switch attr.VolumeHealth {
 		case VolumeHealthThinFailed:
 			return ErrThinPoolFailed
 		case VolumeHealthThinPoolOutOfDataSpace:
@@ -239,15 +239,15 @@ func (l LVAttributes) VerifyHealth() error {
 		}
 	}
 
-	if l.VolumeType == VolumeTypeThinVolume {
-		switch l.VolumeHealth {
+	if attr.VolumeType == VolumeTypeThinVolume {
+		switch attr.VolumeHealth {
 		case VolumeHealthThinFailed:
 			return ErrThinVolumeFailed
 		}
 	}
 
-	if l.VolumeType == VolumeTypeRAID || l.VolumeType == VolumeTypeRAIDNoInitialSync {
-		switch l.VolumeHealth {
+	if attr.VolumeType == VolumeTypeRAID || attr.VolumeType == VolumeTypeRAIDNoInitialSync {
+		switch attr.VolumeHealth {
 		case VolumeHealthRAIDRefreshNeeded:
 			return ErrRAIDRefreshNeeded
 		case VolumeHealthRAIDMismatchesExist:
@@ -261,7 +261,7 @@ func (l LVAttributes) VerifyHealth() error {
 		}
 	}
 
-	switch l.State {
+	switch attr.State {
 	case StateSuspended, StateSuspendedSnapshot:
 		return ErrLogicalVolumeSuspended
 	case StateInvalidSnapshot:
@@ -280,7 +280,7 @@ func (l LVAttributes) VerifyHealth() error {
 		return ErrHistoricalVolumeState
 	}
 
-	switch l.Open {
+	switch attr.Open {
 	case OpenUnknown:
 		return ErrLogicalVolumeUnderlyingDeviceStateUnknown
 	}
