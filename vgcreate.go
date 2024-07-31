@@ -12,6 +12,9 @@ type (
 
 		PhysicalVolumeNames
 
+		MaximumLogicalVolumes
+		MaximumPhysicalVolumes
+
 		AutoActivation
 		Force
 		Zero
@@ -64,6 +67,8 @@ func (opts *VGCreateOptions) ApplyToArgs(args Arguments) error {
 	for _, opt := range []Argument{
 		opts.VolumeGroupName,
 		opts.PhysicalVolumeNames,
+		opts.MaximumLogicalVolumes,
+		opts.MaximumPhysicalVolumes,
 		opts.Tags,
 		opts.Force,
 		opts.Zero,

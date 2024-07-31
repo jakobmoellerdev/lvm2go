@@ -164,12 +164,12 @@ type TestVolumeGroup struct {
 	t    *testing.T
 }
 
-func MakeTestVolumeGroup(t *testing.T, devices ...string) TestVolumeGroup {
+func MakeTestVolumeGroup(t *testing.T, options ...VGCreateOption) TestVolumeGroup {
 	ctx := context.Background()
 	name := VolumeGroupName(NewNonDeterministicTestID(t))
 	c := GetTestClient(ctx)
 
-	if err := c.VGCreate(ctx, name, PhysicalVolumesFrom(devices...), PhysicalExtentSize(TestExtentSize)); err != nil {
+	if err := c.VGCreate(ctx, append(options, name, PhysicalExtentSize(TestExtentSize))...); err != nil {
 		t.Fatal(err)
 	}
 
@@ -271,8 +271,9 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) Test
 }
 
 type test struct {
-	LoopDevices []Size
-	Volumes     []TestLogicalVolume
+	LoopDevices                  []Size
+	Volumes                      []TestLogicalVolume
+	AdditionalVolumeGroupOptions []VGCreateOption
 }
 
 type testInfra struct {
@@ -301,7 +302,7 @@ func (test test) SetupDevicesAndVolumeGroup(t *testing.T) testInfra {
 	}
 	devices := loopDevices.Devices()
 
-	volumeGroup := MakeTestVolumeGroup(t, devices...)
+	volumeGroup := MakeTestVolumeGroup(t, append(test.AdditionalVolumeGroupOptions, PhysicalVolumesFrom(devices...))...)
 
 	var lvs []TestLogicalVolume
 	for _, lv := range test.Volumes {
