@@ -12,7 +12,6 @@ type (
 		MaximumLogicalVolumes
 		MaximumPhysicalVolumes
 		AllocationPolicy
-		AutoActivation
 		Tags
 		DelTags
 
@@ -60,7 +59,6 @@ func (opts *VGChangeOptions) ApplyToArgs(args Arguments) error {
 		opts.MaximumLogicalVolumes,
 		opts.MaximumPhysicalVolumes,
 		opts.AllocationPolicy,
-		opts.AutoActivation,
 		opts.Tags,
 		opts.DelTags,
 		opts.CommonOptions,

@@ -146,6 +146,9 @@ func (opt VolumeGroupName) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 func (opt VolumeGroupName) ApplyToLVResizeOptions(opts *LVResizeOptions) {
 	opts.VolumeGroupName = opt
 }
+func (opt VolumeGroupName) ApplyToLVReduceOptions(opts *LVReduceOptions) {
+	opts.VolumeGroupName = opt
+}
 func (opt VolumeGroupName) ApplyToPVsOptions(opts *PVsOptions) {
 	opts.Select = NewMatchesAllSelect(opts.Select, NewMatchesAllSelector(map[string]string{"vg_name": string(opt)}))
 }

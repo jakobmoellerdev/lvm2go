@@ -258,7 +258,7 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) Test
 	}
 	vg.t.Cleanup(func() {
 		if err := c.LVRemove(ctx, vg.Name, logicalVolumeName); err != nil {
-			if IsLVMNotFound(err) {
+			if IsLVMErrNotFound(err) {
 				vg.t.Logf("logical volume %s not found, skipping removal", logicalVolumeName)
 			} else {
 				vg.t.Fatal(err)

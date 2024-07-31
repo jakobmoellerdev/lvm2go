@@ -465,30 +465,42 @@ func (opt ChunkSize) ApplyToArgs(args Arguments) error {
 
 type DataAlignment Size
 
-func (opt DataAlignment) ApplyToVGCreateOptions(opts *VGCreateOptions) {
-	opts.DataAlignment = opt
-}
-
 func (opt DataAlignment) ApplyToArgs(args Arguments) error {
 	return Size(opt).applyToArgs(dataAlignmentArg, args)
 }
 
-type DataAlignmentOffset Size
-
-func (opt DataAlignmentOffset) ApplyToVGCreateOptions(opts *VGCreateOptions) {
-	opts.DataAlignmentOffset = opt
+func (opt DataAlignment) ApplyToVGCreateOptions(opts *VGCreateOptions) {
+	opts.DataAlignment = opt
 }
+
+func (opt DataAlignment) ApplyToPVCreateOptions(opts *PVCreateOptions) {
+	opts.DataAlignment = opt
+}
+
+type DataAlignmentOffset Size
 
 func (opt DataAlignmentOffset) ApplyToArgs(args Arguments) error {
 	return Size(opt).applyToArgs(dataAlignmentOffsetArg, args)
 }
 
+func (opt DataAlignmentOffset) ApplyToVGCreateOptions(opts *VGCreateOptions) {
+	opts.DataAlignmentOffset = opt
+}
+
+func (opt DataAlignmentOffset) ApplyToPVCreateOptions(opts *PVCreateOptions) {
+	opts.DataAlignmentOffset = opt
+}
+
 type MetadataSize Size
+
+func (opt MetadataSize) ApplyToArgs(args Arguments) error {
+	return Size(opt).applyToArgs(metadataSizeArg, args)
+}
 
 func (opt MetadataSize) ApplyToVGCreateOptions(opts *VGCreateOptions) {
 	opts.MetadataSize = opt
 }
 
-func (opt MetadataSize) ApplyToArgs(args Arguments) error {
-	return Size(opt).applyToArgs(metadataSizeArg, args)
+func (opt MetadataSize) ApplyToPVCreateOptions(opts *PVCreateOptions) {
+	opts.MetadataSize = opt
 }

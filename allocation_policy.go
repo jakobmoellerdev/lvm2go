@@ -27,6 +27,9 @@ func (opt AllocationPolicy) ApplyToVGChangeOptions(opts *VGChangeOptions) {
 func (opt AllocationPolicy) ApplyToVGCreateOptions(opts *VGCreateOptions) {
 	opts.AllocationPolicy = opt
 }
+func (opt AllocationPolicy) ApplyToPVMoveOptions(opts *PVMoveOptions) {
+	opts.AllocationPolicy = opt
+}
 
 func (opt AllocationPolicy) ApplyToArgs(args Arguments) error {
 	if opt == "" {

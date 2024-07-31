@@ -39,7 +39,7 @@ func (c *client) RunLVMInto(ctx context.Context, into any, args ...string) error
 
 	err = errors.Join(output.Close(), err)
 
-	if IsLVMNoSuchCommand(err) {
+	if IsLVMErrNoSuchCommand(err) {
 		return fmt.Errorf("%q is not a valid command: %w", strings.Join(args, " "), err)
 	}
 

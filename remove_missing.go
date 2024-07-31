@@ -1,14 +1,11 @@
 package lvm2go
 
-import "fmt"
-
-type RemoveMissing VolumeGroupName
+type RemoveMissing bool
 
 func (opt RemoveMissing) ApplyToArgs(args Arguments) error {
-	if opt == "" {
-		return nil
+	if opt {
+		args.AddOrReplace("--removemissing")
 	}
-	args.AddOrReplace(fmt.Sprintf("--removemissing=%s", opt))
 	return nil
 }
 

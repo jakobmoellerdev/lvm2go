@@ -130,6 +130,14 @@ func (opt LogicalVolumeName) ApplyToLVsOptions(opts *LVsOptions) {
 	opts.LogicalVolumeName = opt
 }
 
+func (opt LogicalVolumeName) ApplyToLVReduceOptions(opts *LVReduceOptions) {
+	opts.LogicalVolumeName = opt
+}
+
+func (opt LogicalVolumeName) ApplyToPVMoveOptions(opts *PVMoveOptions) {
+	opts.LogicalVolumeName = opt
+}
+
 type FQLogicalVolumeName struct {
 	VolumeGroupName
 	LogicalVolumeName
@@ -182,6 +190,10 @@ func (opt *FQLogicalVolumeName) Validate() error {
 	return nil
 }
 
+func (opt *FQLogicalVolumeName) String() string {
+	return fmt.Sprintf("%s/%s", opt.VolumeGroupName, opt.LogicalVolumeName)
+}
+
 func (opt *FQLogicalVolumeName) ApplyToArgs(args Arguments) error {
 	if opt == nil {
 		return nil
@@ -212,6 +224,9 @@ var _ Argument = LogicalVolumeName("")
 var _ Argument = (*FQLogicalVolumeName)(nil)
 
 func (opt LogicalVolumeName) ApplyToArgs(args Arguments) error {
+	if len(opt) == 0 {
+		return nil
+	}
 	switch args.GetType() {
 	case ArgsTypeLVRename:
 		args.AddOrReplace(string(opt))

@@ -2,13 +2,13 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
-	"fmt"
 )
 
 type (
 	PVChangeOptions struct {
 		PhysicalVolumeName
+		Tags
+		DelTags
 		CommonOptions
 	}
 	PVChangeOption interface {
@@ -31,10 +31,37 @@ func (c *client) PVChange(ctx context.Context, opts ...PVChangeOption) error {
 	return c.RunLVM(ctx, append([]string{"pvchange"}, args.GetRaw()...)...)
 }
 
+func (opts *PVChangeOptions) ApplyToPVChangeOptions(new *PVChangeOptions) {
+	*new = *opts
+}
+
 func (list PVChangeOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	args := NewArgs(ArgsTypeGeneric)
+	options := PVChangeOptions{}
+	for _, opt := range list {
+		opt.ApplyToPVChangeOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
 func (opts *PVChangeOptions) ApplyToArgs(args Arguments) error {
-	return fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	if opts.PhysicalVolumeName == "" {
+		return ErrPhysicalVolumeNameRequired
+	}
+
+	for _, arg := range []Argument{
+		opts.PhysicalVolumeName,
+		opts.Tags,
+		opts.DelTags,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

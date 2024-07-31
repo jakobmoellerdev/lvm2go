@@ -46,7 +46,7 @@ func (c *client) PVs(ctx context.Context, opts ...PVsOption) ([]*PhysicalVolume,
 
 	err = c.RunLVMInto(ctx, res, append(args, argsFromOpts.GetRaw()...)...)
 
-	if IsLVMNotFound(err) {
+	if IsLVMErrNotFound(err) {
 		return nil, nil
 	}
 

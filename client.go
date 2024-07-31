@@ -183,6 +183,11 @@ type PhysicalVolumeClient interface {
 	//
 	// See man lvm pvchange for more information.
 	PVChange(ctx context.Context, opts ...PVChangeOption) error
+
+	// PVMove moves extents between physical volumes with the given options.
+	//
+	// see man lvm pvmove for more information.
+	PVMove(ctx context.Context, opts ...PVMoveOption) error
 }
 
 // DevicesClient is a client that provides operations on lvm2 device files.

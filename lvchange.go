@@ -51,6 +51,10 @@ func (c *client) LVChange(ctx context.Context, opts ...LVChangeOption) error {
 	return c.RunLVM(ctx, append([]string{"lvchange"}, args.GetRaw()...)...)
 }
 
+func (opts *LVChangeOptions) ApplyToLVChangeOptions(new *LVChangeOptions) {
+	*new = *opts
+}
+
 func (list LVChangeOptionsList) AsArgs() (Arguments, error) {
 	args := NewArgs(ArgsTypeLVChange)
 	options := LVChangeOptions{}

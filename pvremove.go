@@ -2,13 +2,12 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
-	"fmt"
 )
 
 type (
 	PVRemoveOptions struct {
 		PhysicalVolumeName
+		Force
 		CommonOptions
 	}
 	PVRemoveOption interface {
@@ -37,16 +36,25 @@ func (opts *PVRemoveOptions) ApplyToPVRemoveOptions(new *PVRemoveOptions) {
 }
 
 func (list PVRemoveOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	args := NewArgs(ArgsTypeGeneric)
+	options := PVRemoveOptions{}
+	for _, opt := range list {
+		opt.ApplyToPVRemoveOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
 func (opts *PVRemoveOptions) ApplyToArgs(args Arguments) error {
 	if opts.PhysicalVolumeName == "" {
-		return fmt.Errorf("PhysicalVolumeName is required for removal of a physical volume")
+		return ErrPhysicalVolumeNameRequired
 	}
 
 	for _, arg := range []Argument{
 		opts.PhysicalVolumeName,
+		opts.Force,
 		opts.CommonOptions,
 	} {
 		if err := arg.ApplyToArgs(args); err != nil {
