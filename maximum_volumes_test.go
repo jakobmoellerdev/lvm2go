@@ -39,7 +39,7 @@ func TestMaximumLogicalVolumes(t *testing.T) {
 			MustParseSize("4M"),
 		); err == nil {
 			t.Fatal("expected error")
-		} else if !IsLVMMaximumLogicalVolumesReached(err) {
+		} else if !IsLVMErrMaximumLogicalVolumesReached(err) {
 			t.Fatalf("expected maximum number of logical volumes reached error, but got %s", err)
 		}
 
@@ -66,7 +66,7 @@ func TestMaximumLogicalVolumes(t *testing.T) {
 			PhysicalVolumeName(additionalLoop.Device()),
 		); err == nil {
 			t.Fatal("expected error")
-		} else if !IsLVMMaximumPhysicalVolumesReached(err) {
+		} else if !IsLVMErrMaximumPhysicalVolumesReached(err) {
 			t.Fatalf("expected maximum number of physical volumes reached error, but got %s", err)
 		}
 

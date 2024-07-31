@@ -2,7 +2,10 @@ package lvm2go
 
 import (
 	"encoding/json"
+	"errors"
 )
+
+var ErrPhysicalVolumeNameRequired = errors.New("PhysicalVolumeName is required")
 
 // PhysicalVolumeNameUnknown is a placeholder for an unknown physical volume name used by lvm2
 // in case of failure to retrieve the name.
@@ -102,6 +105,15 @@ func (opt PhysicalVolumeName) ApplyToVGExtendOptions(opts *VGExtendOptions) {
 func (opt PhysicalVolumeName) ApplyToVGReduceOptions(opts *VGReduceOptions) {
 	opts.PhysicalVolumeNames = append(opts.PhysicalVolumeNames, opt)
 }
+func (opt PhysicalVolumeName) ApplyToPVChangeOptions(opts *PVChangeOptions) {
+	opts.PhysicalVolumeName = opt
+}
+func (opt PhysicalVolumeName) ApplyToPVRemoveOptions(opts *PVRemoveOptions) {
+	opts.PhysicalVolumeName = opt
+}
+func (opt PhysicalVolumeName) ApplyToPVMoveOptions(opts *PVMoveOptions) {
+	opts.SetOldOrNew(opt)
+}
 
 type PhysicalVolumeNames []PhysicalVolumeName
 
@@ -114,6 +126,15 @@ func (opt PhysicalVolumeNames) ApplyToVGReduceOptions(opts *VGReduceOptions) {
 func (opt PhysicalVolumeNames) ApplyToVGExtendOptions(opts *VGExtendOptions) {
 	for _, name := range opt {
 		name.ApplyToVGExtendOptions(opts)
+	}
+}
+
+func (opt PhysicalVolumeNames) ApplyToPVMoveOptions(opts *PVMoveOptions) {
+	if opts.From == "" {
+		opts.From = opt[0]
+		opts.To = append(opts.To, opt[1:]...)
+	} else {
+		opts.To = append(opts.To, opt...)
 	}
 }
 

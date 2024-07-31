@@ -50,14 +50,14 @@ func (opts *VGReduceOptions) ApplyToArgs(args Arguments) error {
 		return fmt.Errorf("VolumeGroupName is required for extension of a volume group")
 	}
 
-	if len(opts.PhysicalVolumeNames) == 0 {
-		return fmt.Errorf("at least one PhysicalVolumeName is required for extension of a volume group")
+	if len(opts.PhysicalVolumeNames) == 0 && !opts.RemoveMissing {
+		return fmt.Errorf("at least one PhysicalVolumeName is required for reduction of a volume group")
 	}
 
 	for _, arg := range []Argument{
+		opts.RemoveMissing,
 		opts.VolumeGroupName,
 		opts.PhysicalVolumeNames,
-		opts.RemoveMissing,
 		opts.Force,
 		opts.CommonOptions,
 	} {

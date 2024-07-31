@@ -48,7 +48,7 @@ func (c *client) LVs(ctx context.Context, opts ...LVsOption) ([]*LogicalVolume, 
 
 	err = c.RunLVMInto(ctx, res, append(args, argsFromOpts.GetRaw()...)...)
 
-	if IsLVMNotFound(err) {
+	if IsLVMErrNotFound(err) {
 		return nil, nil
 	}
 

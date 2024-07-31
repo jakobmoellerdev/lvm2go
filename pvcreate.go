@@ -2,13 +2,16 @@ package lvm2go
 
 import (
 	"context"
-	"errors"
-	"fmt"
 )
 
 type (
 	PVCreateOptions struct {
 		PhysicalVolumeName
+		Force
+		Zero
+		DataAlignment
+		DataAlignmentOffset
+		MetadataSize
 		CommonOptions
 	}
 	PVCreateOption interface {
@@ -31,10 +34,40 @@ func (c *client) PVCreate(ctx context.Context, opts ...PVCreateOption) error {
 	return c.RunLVM(ctx, append([]string{"pvcreate"}, args.GetRaw()...)...)
 }
 
+func (opts *PVCreateOptions) ApplyToPVCreateOptions(new *PVCreateOptions) {
+	*new = *opts
+}
+
 func (list PVCreateOptionsList) AsArgs() (Arguments, error) {
-	return nil, fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	args := NewArgs(ArgsTypeGeneric)
+	options := PVCreateOptions{}
+	for _, opt := range list {
+		opt.ApplyToPVCreateOptions(&options)
+	}
+	if err := options.ApplyToArgs(args); err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
 func (opts *PVCreateOptions) ApplyToArgs(args Arguments) error {
-	return fmt.Errorf("not implemented: %w", errors.ErrUnsupported)
+	if opts.PhysicalVolumeName == "" {
+		return ErrPhysicalVolumeNameRequired
+	}
+
+	for _, arg := range []Argument{
+		opts.PhysicalVolumeName,
+		opts.Force,
+		opts.Zero,
+		opts.DataAlignment,
+		opts.DataAlignmentOffset,
+		opts.MetadataSize,
+		opts.CommonOptions,
+	} {
+		if err := arg.ApplyToArgs(args); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

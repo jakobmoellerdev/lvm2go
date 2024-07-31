@@ -95,5 +95,9 @@ This set of commands is implemented and tested to some extent. The tested featur
 | vgrename   | Alpha | Basic       |                   |
 | vgs        | Alpha | Basic       |                   |
 | pvs        | Alpha | Basic       |                   |
+| pvcreate   | Alpha | Basic       |                   |
+| pvchange   | Alpha | Basic       |                   |
+| pvremove   | Alpha | Basic       |                   |
+| pvmove     | Alpha | Basic       |                   |
 | lvmdevices | Alpha | Basic       |                   |
 | version    | Alpha | Basic       |                   |

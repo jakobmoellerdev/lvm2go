@@ -43,7 +43,7 @@ func (c *client) VGs(ctx context.Context, opts ...VGsOption) ([]*VolumeGroup, er
 
 	err = c.RunLVMInto(ctx, res, append(args, argsFromOpts.GetRaw()...)...)
 
-	if IsLVMNotFound(err) {
+	if IsLVMErrNotFound(err) {
 		return nil, nil
 	}
 

@@ -25,6 +25,12 @@ func (opt Tags) ApplyToVGChangeOptions(opts *VGChangeOptions) {
 func (opt Tags) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 	opts.Tags = opt
 }
+func (opt Tags) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.Tags = opt
+}
+func (opt Tags) ApplyToPVChangeOptions(opts *PVChangeOptions) {
+	opts.Tags = opt
+}
 
 func (opt Tags) ApplyToArgs(args Arguments) error {
 	if len(opt) == 0 {
@@ -80,5 +86,9 @@ func (opt DelTags) ApplyToLVChangeOptions(opts *LVChangeOptions) {
 }
 
 func (opt DelTags) ApplyToVGChangeOptions(opts *VGChangeOptions) {
+	opts.DelTags = opt
+}
+
+func (opt DelTags) ApplyToPVChangeOptions(opts *PVChangeOptions) {
 	opts.DelTags = opt
 }
