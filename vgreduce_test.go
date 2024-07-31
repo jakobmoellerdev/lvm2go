@@ -42,8 +42,12 @@ func TestVGReduceByForce(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := clnt.LVChange(ctx, infra.volumeGroup.Name, infra.lvs[0].LogicalVolumeName(), Deactivate); err != nil {
+		t.Fatal(err)
+	}
+
 	if err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5)); err == nil {
-		t.Skip("if the error is nil then losetup removal did not work as expected and the device is still occupied.")
+		t.Fatal("expected error due to device missing")
 	} else if !IsLVMErrVGImmutableDueToMissingPVs(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
@@ -137,8 +141,12 @@ func TestVGReduceByMove(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := clnt.LVChange(ctx, infra.volumeGroup.Name, infra.lvs[0].LogicalVolumeName(), Deactivate); err != nil {
+		t.Fatal(err)
+	}
+
 	if err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5)); err == nil {
-		t.Skip("if the error is nil then losetup removal did not work as expected and the device is still occupied.")
+		t.Fatal("expected error due to device missing")
 	} else if !IsLVMErrVGImmutableDueToMissingPVs(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
