@@ -55,10 +55,10 @@ func TestVGReduceByForce(t *testing.T) {
 	if err = clnt.VGReduce(ctx, infra.volumeGroup.Name, RemoveMissing(true)); err == nil {
 		t.Fatal("expected error due to device missing")
 	}
-	if !IsLVMWarningCouldNotFindDeviceWithUUID(err) {
+	if !IsLVMCouldNotFindDeviceWithUUID(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
-	if !IsLVMWarningPartialLVNeedsRepairOrRemove(err) {
+	if !IsLVMPartialLVNeedsRepairOrRemove(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
 	if !IsLVMErrThereAreStillPartialLVs(err) {
