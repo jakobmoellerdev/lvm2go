@@ -39,6 +39,7 @@ type (
 		DataAlignmentOffset
 		MetadataSize
 		AllocationPolicy
+		Shared
 
 		CommonOptions
 	}
@@ -97,6 +98,7 @@ func (opts *VGCreateOptions) ApplyToArgs(args Arguments) error {
 		opts.MetadataSize,
 		opts.AllocationPolicy,
 		opts.AutoActivation,
+		opts.Shared,
 		opts.CommonOptions,
 	} {
 		if err := opt.ApplyToArgs(args); err != nil {

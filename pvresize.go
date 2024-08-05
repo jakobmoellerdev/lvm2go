@@ -46,6 +46,10 @@ func (c *client) PVResize(ctx context.Context, opts ...PVResizeOption) error {
 	return c.RunLVM(ctx, append([]string{"pvresize"}, args.GetRaw()...)...)
 }
 
+func (opts *PVResizeOptions) ApplyToPVResizeOptions(new *PVResizeOptions) {
+	*new = *opts
+}
+
 func (list PVResizeOptionsList) AsArgs() (Arguments, error) {
 	args := NewArgs(ArgsTypeGeneric)
 	options := PVResizeOptions{}

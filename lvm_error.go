@@ -55,9 +55,20 @@ var (
 
 	// NoFreeExtentsPattern is a regular expression that matches the error message when there are no free extents on a physical volume.
 	NoFreeExtentsPattern = regexp.MustCompile(`No free extents on physical volume "(.*?)"`)
+
+	ConfigurationSectionNotCustomizableByProfilePattern = regexp.MustCompile(`Configuration section "(.*?)" is not customizable by a profile\.`)
 )
 
-func isLVMError(err error, pattern *regexp.Regexp, validExitCodes ...int) bool {
+// IsLVMError returns true if the error is an LVM error with a specific exit code and matches a specific pattern.
+// The validExitCodes are the exit codes that are considered valid for the error.
+// While lvm2go packages a lot of predefined patterns, it is possible to use a custom pattern.
+//
+// Example:
+//
+//	func IsLVMCustomError(err error) bool {
+//		return IsLVMError(err, regexp.MustCompile(`custom error pattern`), 5)
+//	}
+func IsLVMError(err error, pattern *regexp.Regexp, validExitCodes ...int) bool {
 	if err == nil {
 		return false
 	}
@@ -69,31 +80,31 @@ func isLVMError(err error, pattern *regexp.Regexp, validExitCodes ...int) bool {
 }
 
 func IsLVMErrNotFound(err error) bool {
-	return isLVMError(err, NotFoundPattern, 5)
+	return IsLVMError(err, NotFoundPattern, 5)
 }
 
 func IsLVMErrNoSuchCommand(err error) bool {
-	return isLVMError(err, NoSuchCommandPattern, 2)
+	return IsLVMError(err, NoSuchCommandPattern, 2)
 }
 
 func IsLVMErrMaximumLogicalVolumesReached(err error) bool {
-	return isLVMError(err, MaximumNumberOfLogicalVolumesPattern, 5)
+	return IsLVMError(err, MaximumNumberOfLogicalVolumesPattern, 5)
 }
 
 func IsLVMErrMaximumPhysicalVolumesReached(err error) bool {
-	return isLVMError(err, MaximumNumberOfPhysicalVolumesPattern, 5)
+	return IsLVMError(err, MaximumNumberOfPhysicalVolumesPattern, 5)
 }
 
 func IsLVMErrVGImmutableDueToMissingPVs(err error) bool {
-	return isLVMError(err, CannotChangeVGWhilePVsAreMissingPattern, 5)
+	return IsLVMError(err, CannotChangeVGWhilePVsAreMissingPattern, 5)
 }
 
 func IsLVMCouldNotFindDeviceWithUUID(err error) bool {
-	return isLVMError(err, CouldNotFindDeviceWithUUIDPattern, 5)
+	return IsLVMError(err, CouldNotFindDeviceWithUUIDPattern, 5)
 }
 
 func IsLVMErrVGMissingPVs(err error) bool {
-	return isLVMError(err, VGMissingPVsPattern, 5, 3)
+	return IsLVMError(err, VGMissingPVsPattern, 5, 3)
 }
 
 func LVMErrVGMissingPVsDetails(err error) (vg string, pv string, lastWrittenTo string, ok bool) {
@@ -105,17 +116,21 @@ func LVMErrVGMissingPVsDetails(err error) (vg string, pv string, lastWrittenTo s
 }
 
 func IsLVMPartialLVNeedsRepairOrRemove(err error) bool {
-	return isLVMError(err, PartialLVNeedsRepairOrRemovePattern, 5)
+	return IsLVMError(err, PartialLVNeedsRepairOrRemovePattern, 5)
 }
 
 func IsLVMErrThereAreStillPartialLVs(err error) bool {
-	return isLVMError(err, ThereAreStillPartialLVsPattern, 5)
+	return IsLVMError(err, ThereAreStillPartialLVsPattern, 5)
 }
 
 func IsLVMErrNoDataToMove(err error) bool {
-	return isLVMError(err, NoDataToMovePattern, 5)
+	return IsLVMError(err, NoDataToMovePattern, 5)
 }
 
 func IsLVMNoFreeExtents(err error) bool {
-	return isLVMError(err, NoFreeExtentsPattern, 5)
+	return IsLVMError(err, NoFreeExtentsPattern, 5)
+}
+
+func IsLVMErrConfigurationSectionNotCustomizableByProfile(err error) bool {
+	return IsLVMError(err, ConfigurationSectionNotCustomizableByProfilePattern, 5)
 }
