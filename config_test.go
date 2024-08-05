@@ -346,8 +346,6 @@ func TestUpdateGlobalConfig(t *testing.T) {
 		t.Fatalf("failed to update global config: %v", err)
 	}
 
-	println(control().String())
-
 	if containsModifiedField = bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
 		"%sprofile_dir = %q\n",
 		expectedPreamble,
