@@ -313,7 +313,7 @@ func TestUpdateGlobalConfig(t *testing.T) {
 		} `lvm:"config"`
 	}{}
 
-	expectedPreamble := "\n\t# Proceed carefully when editing as it can have unintended consequences with code relying on this field.\n\t"
+	expectedPreamble := "# Proceed carefully when editing as it can have unintended consequences with code relying on this field.\n\t"
 
 	cfg.Config.ProfileDir = "mynewprofiledir"
 
@@ -340,6 +340,33 @@ func TestUpdateGlobalConfig(t *testing.T) {
 		t.Fatalf("expected field to be modified, but it was not")
 	}
 
-	t.Log(LVMGlobalConfiguration)
+	cfg.Config.ProfileDir = "mynewprofiledir2"
+
+	if err := clnt.UpdateGlobalConfig(context.Background(), &cfg); err != nil {
+		t.Fatalf("failed to update global config: %v", err)
+	}
+
 	println(control().String())
+
+	if containsModifiedField = bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
+		"%sprofile_dir = %q\n",
+		expectedPreamble,
+		"mynewprofiledir2",
+	))); !containsModifiedField {
+		t.Fatalf("expected field to be modified, but it was not")
+	}
+
+	cfg.Config.ProfileDir = "mynewprofiledir3"
+
+	if err := clnt.UpdateGlobalConfig(context.Background(), &cfg); err != nil {
+		t.Fatalf("failed to update global config: %v", err)
+	}
+
+	if containsModifiedField = bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
+		"%sprofile_dir = %q\n",
+		expectedPreamble,
+		"mynewprofiledir3",
+	))); !containsModifiedField {
+		t.Fatalf("expected field to be modified, but it was not")
+	}
 }
