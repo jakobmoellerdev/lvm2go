@@ -49,6 +49,10 @@ func (c *client) LVResize(ctx context.Context, opts ...LVResizeOption) error {
 	return c.RunLVM(ctx, append([]string{"lvresize"}, args.GetRaw()...)...)
 }
 
+func (opts *LVResizeOptions) ApplyToLVResizeOptions(new *LVResizeOptions) {
+	*new = *opts
+}
+
 func (list LVResizeOptionsList) AsArgs() (Arguments, error) {
 	args := NewArgs(ArgsTypeGeneric)
 	options := LVResizeOptions{}

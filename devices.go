@@ -22,13 +22,7 @@ import (
 
 type Devices []string
 
-func (opt Devices) ApplyToLVsOptions(opts *LVsOptions) {
-	opts.Devices = opt
-}
-func (opt Devices) ApplyToLVCreateOptions(opts *LVCreateOptions) {
-	opts.Devices = opt
-}
-func (opt Devices) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
+func (opt Devices) ApplyToVGsOptions(opts *VGsOptions) {
 	opts.Devices = opt
 }
 func (opt Devices) ApplyToVGCreateOptions(opts *VGCreateOptions) {
@@ -49,6 +43,35 @@ func (opt Devices) ApplyToVGRenameOptions(opts *VGRenameOptions) {
 func (opt Devices) ApplyToVGChangeOptions(opts *VGChangeOptions) {
 	opts.Devices = opt
 }
+
+func (opt Devices) ApplyToLVsOptions(opts *LVsOptions) {
+	opts.Devices = opt
+}
+func (opt Devices) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+	opts.Devices = opt
+}
+func (opt Devices) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
+	opts.Devices = opt
+}
+func (opt Devices) ApplyToLVResizeOptions(opts *LVResizeOptions) {
+	opts.Devices = opt
+}
+func (opt Devices) ApplyToLVExtendOptions(opts *LVExtendOptions) {
+	opts.Devices = opt
+}
+func (opt Devices) ApplyToLVReduceOptions(opts *LVReduceOptions) {
+	opts.Devices = opt
+}
+func (opt Devices) ApplyToLVRenameOptions(opts *LVRenameOptions) {
+	opts.Devices = opt
+}
+func (opt Devices) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.Devices = opt
+}
+
+func (opt Devices) ApplyToPVsOptions(opts *PVsOptions) {
+	opts.Devices = opt
+}
 func (opt Devices) ApplyToPVCreateOptions(opts *PVCreateOptions) {
 	opts.Devices = opt
 }
@@ -59,6 +82,9 @@ func (opt Devices) ApplyToPVResizeOptions(opts *PVResizeOptions) {
 	opts.Devices = opt
 }
 func (opt Devices) ApplyToPVChangeOptions(opts *PVChangeOptions) {
+	opts.Devices = opt
+}
+func (opt Devices) ApplyToPVMoveOptions(opts *PVMoveOptions) {
 	opts.Devices = opt
 }
 
@@ -72,15 +98,13 @@ func (opt Devices) ApplyToArgs(args Arguments) error {
 
 type DevicesFile string
 
-func (opt DevicesFile) ApplyToLVsOptions(opts *LVsOptions) {
+func (opt DevicesFile) ApplyToDevModifyOptions(opts *DevModifyOptions) {
 	opts.DevicesFile = opt
 }
-func (opt DevicesFile) ApplyToLVCreateOptions(opts *LVCreateOptions) {
+func (opt DevicesFile) ApplyToDevListOptions(opts *DevListOptions) {
 	opts.DevicesFile = opt
 }
-func (opt DevicesFile) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
-	opts.DevicesFile = opt
-}
+
 func (opt DevicesFile) ApplyToVGsOptions(opts *VGsOptions) {
 	opts.DevicesFile = opt
 }
@@ -102,16 +126,33 @@ func (opt DevicesFile) ApplyToVGRenameOptions(opts *VGRenameOptions) {
 func (opt DevicesFile) ApplyToVGChangeOptions(opts *VGChangeOptions) {
 	opts.DevicesFile = opt
 }
-func (opt DevicesFile) ApplyToDevListOptions(opts *DevListOptions) {
+
+func (opt DevicesFile) ApplyToLVsOptions(opts *LVsOptions) {
 	opts.DevicesFile = opt
 }
-func (opt DevicesFile) ApplyToDevCheckOptions(opts *DevCheckOptions) {
+func (opt DevicesFile) ApplyToLVCreateOptions(opts *LVCreateOptions) {
 	opts.DevicesFile = opt
 }
-func (opt DevicesFile) ApplyToDevUpdateOptions(opts *DevUpdateOptions) {
+func (opt DevicesFile) ApplyToLVRemoveOptions(opts *LVRemoveOptions) {
 	opts.DevicesFile = opt
 }
-func (opt DevicesFile) ApplyToDevModifyOptions(opts *DevModifyOptions) {
+func (opt DevicesFile) ApplyToLVResizeOptions(opts *LVResizeOptions) {
+	opts.DevicesFile = opt
+}
+func (opt DevicesFile) ApplyToLVExtendOptions(opts *LVExtendOptions) {
+	opts.DevicesFile = opt
+}
+func (opt DevicesFile) ApplyToLVReduceOptions(opts *LVReduceOptions) {
+	opts.DevicesFile = opt
+}
+func (opt DevicesFile) ApplyToLVRenameOptions(opts *LVRenameOptions) {
+	opts.DevicesFile = opt
+}
+func (opt DevicesFile) ApplyToLVChangeOptions(opts *LVChangeOptions) {
+	opts.DevicesFile = opt
+}
+
+func (opt DevicesFile) ApplyToPVsOptions(opts *PVsOptions) {
 	opts.DevicesFile = opt
 }
 func (opt DevicesFile) ApplyToPVCreateOptions(opts *PVCreateOptions) {
@@ -124,6 +165,9 @@ func (opt DevicesFile) ApplyToPVResizeOptions(opts *PVResizeOptions) {
 	opts.DevicesFile = opt
 }
 func (opt DevicesFile) ApplyToPVChangeOptions(opts *PVChangeOptions) {
+	opts.DevicesFile = opt
+}
+func (opt DevicesFile) ApplyToPVMoveOptions(opts *PVMoveOptions) {
 	opts.DevicesFile = opt
 }
 

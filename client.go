@@ -19,6 +19,7 @@ package lvm2go
 import (
 	"context"
 	"errors"
+	"io"
 )
 
 var (
@@ -59,6 +60,101 @@ type MetaClient interface {
 	//
 	// See man lvm config for more information.
 	RawConfig(ctx context.Context, opts ...ConfigOption) (RawConfig, error)
+
+	// ReadAndDecodeConfig requests and decodes configuration values from lvm2 formatted files.
+	// The configuration values are decoded into the given value v.
+	// If the configuration cannot be determined, an error is returned.
+	// The configuration v has to be formatted in a very specific way.
+	//
+	// An inner struct field represents each Config Block in an lvm configuration file.
+	// The inner struct field must be tagged with the tag of key LVMConfigStructTag set to the value
+	// corresponding to the config block.
+	// The config block struct field must be exported.
+	//
+	// A field represents each Value in a Config Block in the inner struct.
+	// The field must be tagged with the LVMConfigStructTag and its value set to the key of the value in the lvm config.
+	// The field must be exported.
+	//
+	// Example:
+	// type LVMConfig struct {
+	//     Devices struct {
+	//		 Dir string `lvm:"dir"`
+	//     } `lvm:"devices"`
+	// }
+	//
+	// The above struct will result in the following query:
+	// "lvm config devices/dir"
+	//
+	// Note that the query can be extended and changed similarly to RawConfig.
+	// E.g., to query the full merged configuration, use ConfigTypeFull.
+	// Otherwise, the default configuration is queried, which might not result in a key being found.
+	//
+	// Possible value types for configuration keys are:
+	// - string
+	// - int(8,16,32,64)
+	ReadAndDecodeConfig(ctx context.Context, v any, opts ...ConfigOption) error
+
+	// WriteAndEncodeConfig writes configuration values to the given writer.
+	// The configuration values are encoded from the given value v.
+	// If the configuration cannot be written, an error is returned.
+	// The configuration v has to be formatted in a very specific way that is equivalent to the format of ReadAndDecodeConfig.
+	//
+	// Example:
+	// type LVMConfig struct {
+	//     Devices struct {
+	//		 Dir string `lvm:"dir"`
+	//     } `lvm:"devices"`
+	// }
+	//
+	// The above struct will result in the following write
+	// devices {
+	//     dir="/dev"
+	// }
+	//
+	// Possible value types for configuration keys are:
+	// - string
+	// - int(8,16,32,64)
+	WriteAndEncodeConfig(ctx context.Context, v any, writer io.Writer) error
+
+	// CreateProfile creates a profile with the given profileName and value.
+	// The Profile is encoded from the given value v.
+	// The Profile is expected to be resolvable to a valid path (for more information see GetProfilePath).
+	//
+	// Note that although all keys can be used in the profile, lvm2 might error on unknown keys or fail
+	// on unsupported keys.
+	// To avoid this, make sure the keys in v are one of the keys reported by lvm2
+	// when running "lvmconfig --typeconfig profilable" (or use ConfigTypeProfilable with RawConfig).
+	CreateProfile(ctx context.Context, v any, profile Profile) (string, error)
+
+	// RemoveProfile removes a profile with the given profileName.
+	// The Profile is expected to be resolvable to a valid path (for more information see GetProfilePath).
+	RemoveProfile(ctx context.Context, profile Profile) error
+
+	// GetProfilePath returns the path to the profile within the profile directory as configured on the host.
+	//
+	// Example:
+	// for a configured profile directory /etc/lvm/profile on the host, the following result will be returned:
+	// - GetProfilePath(ctx, "test") -> "/etc/lvm/profile/test.profile", nil
+	// - GetProfilePath(ctx, "test.profile") -> "/etc/lvm/profile/test.profile", nil
+	// - GetProfilePath(ctx, "/etc/lvm/profile/test") -> "/etc/lvm/profile/test.profile", nil
+	// - GetProfilePath(ctx, "/etc/lvm/profile/test.profile") -> "/etc/lvm/profile/test.profile", nil
+	// - GetProfilePath(ctx, "/var/test") -> "", error
+	// - GetProfilePath(ctx, "/var/") -> "", error
+	// - GetProfilePath(ctx, "test.something") -> "", error
+	//
+	// For more information on the profile directory, check the lvm2 configuration.
+	// Usually, the directory is set to /etc/lvm/profile as per config key config/profile_dir,
+	// but it can be changed to any other directory based on the host.
+	// For getting the current profile directory, see GetProfileDirectory.
+	GetProfilePath(ctx context.Context, profile Profile) (string, error)
+
+	// GetProfileDirectory returns the profile directory as configured on the host.
+	// If the profile directory cannot be determined, an error is returned.
+	// The profile directory is the directory where lvm2 profiles are stored.
+	// The directory is expected to be resolvable to a valid path.
+	//
+	// See man lvm and man lvmconfig for more information.
+	GetProfileDirectory(ctx context.Context) (string, error)
 }
 
 // VolumeGroupClient is a client that provides operations on lvm2 volume groups.

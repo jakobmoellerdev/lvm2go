@@ -35,7 +35,7 @@ func TestLVAttributes(t *testing.T) {
 		error error
 	}{
 		{
-			"RAID Config without Initial Sync",
+			"RAID LVMConfig without Initial Sync",
 			args{raw: "Rwi-a-r---"},
 			LVAttributes{
 				VolumeType:             VolumeTypeRAIDNoInitialSync,

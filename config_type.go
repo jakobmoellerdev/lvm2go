@@ -19,7 +19,15 @@ package lvm2go
 type ConfigType string
 
 const (
-	ConfigTypeFull ConfigType = "full"
+	ConfigTypeFull               ConfigType = "full"
+	ConfigTypeCurrent            ConfigType = "current"
+	ConfigTypeDefault            ConfigType = "default"
+	ConfigTypeDiff               ConfigType = "diff"
+	ConfigTypeMissing            ConfigType = "missing"
+	ConfigTypeNew                ConfigType = "new"
+	ConfigTypeProfilable         ConfigType = "profilable"
+	ConfigTypeProfilableCommand  ConfigType = "profilable-command"
+	ConfigTypeProfilableMetadata ConfigType = "profilable-metadata"
 )
 
 func (c ConfigType) String() string {
