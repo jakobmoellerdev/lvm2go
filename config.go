@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -152,23 +153,18 @@ func (c *client) WriteAndEncodeConfig(ctx context.Context, v any, writer io.Writ
 		fieldsByPrefix[field.prefix] = append(fieldsByPrefix[field.prefix], field)
 	}
 
+	if err = copyWithTimeout(ctx, writer, strings.NewReader(generateLVMConfigCreateComment()), 10*time.Second); err != nil {
+		return fmt.Errorf("failed to write config block: %v", err)
+	}
+
 	for prefix, field := range fieldsByPrefix {
 		buf := bytes.Buffer{}
 		if _, err = buf.WriteString(fmt.Sprintf("%s {\n", prefix)); err != nil {
 			return fmt.Errorf("failed to block start %s: %v", prefix, err)
 		}
 		for _, f := range field {
-			switch f.Kind() {
-			case reflect.Int:
-				if _, err = buf.WriteString(fmt.Sprintf("\t%s=%d\n", f.name, f.Value.Int())); err != nil {
-					return fmt.Errorf("failed to write field %s: %v", f.name, err)
-				}
-			case reflect.String:
-				if _, err = buf.WriteString(fmt.Sprintf("\t%s=%q\n", f.name, f.Value.String())); err != nil {
-					return fmt.Errorf("failed to write field %s: %v", f.name, err)
-				}
-			default:
-				return fmt.Errorf("unsupported field type %s", f.Kind())
+			if _, err = buf.WriteString(fmt.Sprintf("\t%s\n", f)); err != nil {
+				return fmt.Errorf("failed to write field %s: %v", f.name, err)
 			}
 		}
 		if _, err = buf.WriteString("}\n"); err != nil {
@@ -252,6 +248,137 @@ func (c *client) GetProfilePath(ctx context.Context, profile Profile) (string, e
 	}
 
 	return filepath.Join(dir, path), nil
+}
+
+func (c *client) UpdateGlobalConfig(ctx context.Context, v any) error {
+	return c.UpdateConfigFromPath(ctx, v, LVMGlobalConfiguration)
+}
+
+func (c *client) UpdateLocalConfig(ctx context.Context, v any) error {
+	return c.UpdateConfigFromPath(ctx, v, LVMLocalConfiguration)
+}
+
+func (c *client) UpdateProfileConfig(ctx context.Context, v any, profile Profile) error {
+	path, err := c.GetProfilePath(ctx, profile)
+	if err != nil {
+		return fmt.Errorf("failed to get profile path: %v", err)
+	}
+	return c.UpdateConfigFromPath(ctx, v, path)
+}
+
+func (c *client) UpdateConfigFromPath(ctx context.Context, v any, path string) error {
+	fileMode := os.FileMode(0600)
+	profileFile, err := os.OpenFile(path, os.O_RDWR, fileMode)
+	if err != nil {
+		return fmt.Errorf("failed to open config for read/write (%s): %v", fileMode, err)
+	}
+	defer func() {
+		err = errors.Join(err, profileFile.Close())
+	}()
+	if err = updateConfig(ctx, v, profileFile); err != nil {
+		err = fmt.Errorf("failed to update config at %s: %v", path, err)
+	}
+	return err
+}
+
+// updateConfig updates the configuration file with the new values from the struct v.
+// The configuration file is read and written from the provided io.ReadWriteSeeker.
+// The configuration file is updated with the new values from the struct v.
+// If a field is not present in the configuration file, it is added with a comment to indicate it was added.
+// If a field is present in the configuration file, it is updated with the new value and a comment to indicate it was edited.
+// If the resulting configuration is smaller than the original, the difference is padded with empty bytes.
+// The configuration file is written back to the start of original configuration file.
+func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
+	fieldsForConfigQuery, err := readLVMStructTag(v)
+	if err != nil {
+		return fmt.Errorf("failed to read lvm struct tag: %v", err)
+	}
+
+	// fieldRegex is a struct that holds a regexp and the field it is associated with
+	// This is used to update the configuration file with the new values
+	type fieldRegex struct {
+		*regexp.Regexp
+		field *lvmStructTagFieldSpec
+	}
+
+	// build a list of regexes to match the fields in the configuration file
+	fieldRegexes := make([]fieldRegex, 0, len(fieldsForConfigQuery))
+	for _, field := range fieldsForConfigQuery {
+		// The pattern is a regex that matches the field name and its value if uncommented
+		// Valid:
+		//  field = value
+		//  field = "value"
+		// Invalid:
+		//  # field = value
+		//  # field = "value"
+		// It incorporates various tabbing and spacing configurations as well
+		pattern := fmt.Sprintf(`(?m)^\s*%s\s*=\s*(\".*?\"|\d+)?$`, field.name)
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("failed to compile regexp: %v", err)
+		}
+		fieldRegexes = append(fieldRegexes, fieldRegex{Regexp: re, field: &field})
+	}
+
+	// Read the entirety of the config, we will use this as the base for the replacement
+	raw, err := io.ReadAll(rw)
+	if err != nil {
+		return fmt.Errorf("failed to read configuration: %v", err)
+	}
+	// keep track of the offset so we can seek back to the start of the configuration
+	// after we have finished writing the new configuration.
+	// Since our new configuration will be the same size or larger than the original,
+	offset := len(raw)
+
+	comment := generateLVMConfigEditComment()
+	for _, check := range fieldRegexes {
+		// Check if the field is present in the configuration
+		if idx := check.FindIndex(raw); idx == nil {
+			// If the field is not found, add it to the section with a comment to indicate it was added
+			// The section pattern is a regex that matches the section name and the fields within it
+			// Examples:
+			// section {
+			// \tfield = value
+			// }
+			sectionPattern := fmt.Sprintf(`(?sm)(%s\s*\{.*?)(^\s*\})`, check.field.prefix)
+			sectionRe := regexp.MustCompile(sectionPattern)
+			raw = sectionRe.ReplaceAllFunc(raw, func(section []byte) []byte {
+				return sectionRe.ReplaceAll(section, []byte(fmt.Sprintf("${1}%s\t%s\n$2", comment, check.field)))
+			})
+		} else {
+			// Update the field if found and add a comment to indicate it was edited
+			raw = check.ReplaceAll(raw, []byte(fmt.Sprintf("%s\t%s", comment, check.field)))
+		}
+	}
+
+	if diff := len(raw) - offset; diff < 0 {
+		// If the old configuration is smaller than the new configuration, we need to append the difference
+		// with empty bytes to ensure we do not have leftover data from the old configuration
+		raw = append(raw, make([]byte, diff)...)
+	}
+
+	// We want to write from the start, so seek back to the start of the configuration
+	if _, err = rw.Seek(int64(-offset), io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek to start of configuration: %v", err)
+	}
+
+	// Write the new configuration based on the old configuration with the new fields
+	return copyWithTimeout(ctx, rw, bytes.NewReader(raw), 10*time.Second)
+}
+
+// generateLVMConfigEditComment generates a comment to be added to the configuration file
+// This comment is used to indicate that the field was edited by the client.
+func generateLVMConfigEditComment() string {
+	return fmt.Sprintf(`
+	# This field was edited by %s at %s
+	# Proceed carefully when editing as it can have unintended consequences with code relying on this field.
+`, ModuleID(), time.Now().Format(time.RFC3339))
+}
+
+func generateLVMConfigCreateComment() string {
+	return fmt.Sprintf(`# configuration created by %s at %s
+	# Proceed carefully when editing as it can have unintended consequences with code relying on this field.
+`, ModuleID(), time.Now().Format(time.RFC3339))
 }
 
 // GetFromRawConfig retrieves a value from a RawConfig by key and attempts to cast it to the type of T.
@@ -347,6 +474,15 @@ type lvmStructTagFieldSpec struct {
 	reflect.Value
 }
 
+func (f lvmStructTagFieldSpec) String() string {
+	switch f.Kind() {
+	case reflect.Int64:
+		return fmt.Sprintf("%s = %d", f.name, f.Int())
+	default:
+		return fmt.Sprintf("%s = %q", f.name, f.Value.String())
+	}
+}
+
 func readLVMStructTag(v any) (map[string]lvmStructTagFieldSpec, error) {
 	fields, typeAccessor, valueAccessor, err := accessStructOrPointerToStruct(v)
 	if err != nil {
@@ -384,6 +520,9 @@ func readLVMStructTag(v any) (map[string]lvmStructTagFieldSpec, error) {
 	return fieldSpecs, nil
 }
 
+// copyWithTimeout copies data from r to w with a timeout.
+// If the operation takes longer than the timeout, an error is returned.
+// If the operation completes before the timeout, the error as returned by io.Copy is returned.
 func copyWithTimeout(ctx context.Context, w io.Writer, r io.Reader, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

@@ -17,7 +17,9 @@
 package lvm2go_test
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
 	"log/slog"
 	"os"
@@ -284,4 +286,60 @@ func TestProfile(t *testing.T) {
 	if !IsLVMErrConfigurationSectionNotCustomizableByProfile(err) {
 		t.Fatalf("expected error due no customizable profile, but got %v", err)
 	}
+}
+
+//go:embed testdata/lvm.conf
+var testFile []byte
+
+func TestUpdateGlobalConfig(t *testing.T) {
+	LVMGlobalConfiguration = filepath.Join(t.TempDir(), "lvm.conf")
+	if err := os.WriteFile(LVMGlobalConfiguration, testFile, 0600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+	control := func() *bytes.Buffer {
+		data, err := os.ReadFile(LVMGlobalConfiguration)
+		if err != nil {
+			t.Fatalf("failed to read test file: %v", err)
+		}
+		return bytes.NewBuffer(data)
+	}
+
+	clnt := GetTestClient(context.Background())
+
+	cfg := struct {
+		Config struct {
+			AbortOnErrors int64  `lvm:"abort_on_errors"`
+			ProfileDir    string `lvm:"profile_dir"`
+		} `lvm:"config"`
+	}{}
+
+	expectedPreamble := "\n\t# Proceed carefully when editing as it can have unintended consequences with code relying on this field.\n\t"
+
+	cfg.Config.ProfileDir = "mynewprofiledir"
+
+	if err := clnt.UpdateGlobalConfig(context.Background(), &cfg); err != nil {
+		t.Fatalf("failed to update global config: %v", err)
+	}
+
+	containsFieldNewlySet := bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
+		"%sabort_on_errors = %d\n",
+		expectedPreamble,
+		cfg.Config.AbortOnErrors,
+	)))
+	if !containsFieldNewlySet {
+		t.Fatalf("expected field to be set, but it was not")
+	}
+
+	containsModifiedField := bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
+		"%sprofile_dir = %q\n",
+		expectedPreamble,
+		cfg.Config.ProfileDir,
+	)))
+
+	if !containsModifiedField {
+		t.Fatalf("expected field to be modified, but it was not")
+	}
+
+	t.Log(LVMGlobalConfiguration)
+	println(control().String())
 }

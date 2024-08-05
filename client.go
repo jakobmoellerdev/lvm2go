@@ -113,8 +113,28 @@ type MetaClient interface {
 	//
 	// Possible value types for configuration keys are:
 	// - string
-	// - int(8,16,32,64)
+	// - int64
+	//
+	// Note that in lvm2, int64 is used for all integer values as well as for boolean values (0 = false, 1 = true).
 	WriteAndEncodeConfig(ctx context.Context, v any, writer io.Writer) error
+
+	// UpdateGlobalConfig updates the global configuration with the given values from v.
+	// If the configuration cannot be updated, an error is returned.
+	// For more information on the written config file, see LVMGlobalConfiguration
+	// For more information on v and its structure, see WriteAndEncodeConfig.
+	UpdateGlobalConfig(ctx context.Context, v any) error
+
+	// UpdateLocalConfig updates the local configuration with the given values from v.
+	// If the configuration cannot be updated, an error is returned.
+	// For more information on the written config file, see LVMLocalConfiguration
+	// For more information on v and its structure, see WriteAndEncodeConfig.
+	UpdateLocalConfig(ctx context.Context, v any) error
+
+	// UpdateProfileConfig updates the profile configuration with the given values from v.
+	// The profile is expected to be resolvable to a valid path (for more information see GetProfilePath).
+	// If the configuration cannot be updated, an error is returned.
+	// For more information on v and its structure, see WriteAndEncodeConfig.
+	UpdateProfileConfig(ctx context.Context, v any, profile Profile) error
 
 	// CreateProfile creates a profile with the given profileName and value.
 	// The Profile is encoded from the given value v.
