@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	. "github.com/jakobmoellerdev/lvm2go"
 )
@@ -61,7 +62,8 @@ func TestVGReduceByForce(t *testing.T) {
 	if err := clnt.LVChange(ctx, infra.volumeGroup.Name, infra.lvs[0].LogicalVolumeName(), Deactivate); err != nil {
 		t.Fatal(err)
 	}
-
+	// Wait to allow the device to be removed
+	time.Sleep(100 * time.Millisecond)
 	if err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5)); err == nil {
 		t.Fatal("expected error due to device missing")
 	} else if !IsLVMErrVGImmutableDueToMissingPVs(err) {
