@@ -305,6 +305,7 @@ func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
 	fieldRegexes := make([]fieldRegex, 0, len(fieldsForConfigQuery))
 	for _, field := range fieldsForConfigQuery {
 		// The pattern is a regex that matches the field name and its value if uncommented
+		// It also matches the comment that indicates the field was edited by the client.
 		// Valid:
 		//  field = value
 		//  field = "value"
@@ -312,7 +313,7 @@ func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
 		//  # field = value
 		//  # field = "value"
 		// It incorporates various tabbing and spacing configurations as well
-		pattern := fmt.Sprintf(`(?m)^\s*%s\s*=\s*(\".*?\"|\d+)?$`, field.name)
+		pattern := fmt.Sprintf(`(?m)((\t# .*?\n)*|)^\s%s\s*=\s*(\".*?\"|\d+)?$`, field.name)
 		re, err := regexp.Compile(pattern)
 		if err != nil {
 			return fmt.Errorf("failed to compile regexp: %v", err)
@@ -354,7 +355,7 @@ func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
 	if diff := len(raw) - offset; diff < 0 {
 		// If the old configuration is smaller than the new configuration, we need to append the difference
 		// with empty bytes to ensure we do not have leftover data from the old configuration
-		raw = append(raw, make([]byte, diff)...)
+		raw = append(raw, make([]byte, -diff)...)
 	}
 
 	// We want to write from the start, so seek back to the start of the configuration
@@ -369,8 +370,7 @@ func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
 // generateLVMConfigEditComment generates a comment to be added to the configuration file
 // This comment is used to indicate that the field was edited by the client.
 func generateLVMConfigEditComment() string {
-	return fmt.Sprintf(`
-	# This field was edited by %s at %s
+	return fmt.Sprintf(`	# This field was edited by %s at %s
 	# Proceed carefully when editing as it can have unintended consequences with code relying on this field.
 `, ModuleID(), time.Now().Format(time.RFC3339))
 }
