@@ -30,7 +30,7 @@ import (
 var ErrInvalidSizeGEZero = errors.New("invalid size specified, must be greater than or equal to zero")
 
 var ErrInvalidUnit = errors.New("invalid unit specified")
-var ErrInvalidSizePrefix = fmt.Errorf("invalid size section specified, must be one of %v", prefixCandidates)
+var ErrInvalidSizePrefix = fmt.Errorf("invalid size prefix specified, must be one of %v", prefixCandidates)
 
 type SizePrefix rune
 

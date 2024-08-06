@@ -11,6 +11,10 @@ type LexingConfigDecoder interface {
 	Decode(v any) error
 }
 
+type LexingConfigEncoder interface {
+	Encode(v any) error
+}
+
 type StructuredLexingConfigDecoder interface {
 	DecodeStructured(v any) error
 }
@@ -21,13 +25,15 @@ type UnstructuredLexingConfigDecoder interface {
 
 func NewLexingConfigDecoder(reader io.Reader) LexingConfigDecoder {
 	return &configLexDecoder{
-		ConfigLexerReader: NewConfigLexer(reader),
+		ConfigLexerReader: NewBufferedConfigLexer(reader),
 	}
 }
 
 type configLexDecoder struct {
 	ConfigLexerReader
 }
+
+var _ LexingConfigDecoder = &configLexDecoder{}
 
 func (d *configLexDecoder) Decode(v any) error {
 	if isUnstructuredMap(v) {
@@ -124,7 +130,7 @@ func newLexingConfigDecoderWithFieldMapping(
 	fieldSpecs map[string]LVMStructTagFieldMapping,
 ) *structuredConfigLexDecoder {
 	return &structuredConfigLexDecoder{
-		ConfigLexerReader:      NewConfigLexer(reader),
+		ConfigLexerReader:      NewBufferedConfigLexer(reader),
 		StructuredFieldMapping: fieldSpecs,
 		MapHints:               newHintsFromFieldSpecs(fieldSpecs),
 	}

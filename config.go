@@ -142,6 +142,7 @@ func (c *client) ReadAndDecodeConfig(ctx context.Context, v any, opts ...ConfigO
 }
 
 func (c *client) WriteAndEncodeConfig(ctx context.Context, v any, writer io.Writer) error {
+
 	fieldsForConfigQuery, err := readLVMStructTag(v)
 	if err != nil {
 		return fmt.Errorf("failed to read lvm struct tag: %v", err)
@@ -325,7 +326,7 @@ func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
 	if err != nil {
 		return fmt.Errorf("failed to read configuration: %v", err)
 	}
-	// keep track of the readCount so we can seek back to the start of the configuration
+	// keep track of the offset so we can seek back to the start of the configuration
 	// after we have finished writing the new configuration.
 	// Since our new configuration will be the same size or larger than the original,
 	offset := len(raw)

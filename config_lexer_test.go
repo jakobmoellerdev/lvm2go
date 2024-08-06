@@ -15,7 +15,7 @@ var lexerTest []byte
 var lexTestOutput string
 
 func TestConfigLexer(t *testing.T) {
-	lexer := lvm2go.NewConfigLexer(bytes.NewReader(lexerTest))
+	lexer := lvm2go.NewBufferedConfigLexer(bytes.NewReader(lexerTest))
 
 	tokens, err := lexer.Lex()
 	if err != nil {
@@ -25,7 +25,7 @@ func TestConfigLexer(t *testing.T) {
 		t.Fatalf("unexpected output:\n%s", tokens.String())
 	}
 
-	data, err := lexer.WriteBytes(tokens)
+	data, err := lvm2go.ConfigTokensToBytes(tokens)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestConfigLexer(t *testing.T) {
 	}
 }
 
-func TestNewLexingDecoder(t *testing.T) {
+func TestNewLexingConfigDecoder(t *testing.T) {
 
 	t.Run("structured", func(t *testing.T) {
 		decoder := lvm2go.NewLexingConfigDecoder(bytes.NewReader(lexerTest))
@@ -70,6 +70,57 @@ func TestNewLexingDecoder(t *testing.T) {
 		}
 		if cfg["config/profile_dir"].(string) != "/my/custom/profile_dir" {
 			t.Fatalf("unexpected value: %s", cfg["config/profile_dir"])
+		}
+	})
+}
+
+func TestNewLexingConfigEncoder(t *testing.T) {
+	t.Run("structured", func(t *testing.T) {
+		cfg := struct {
+			Config struct {
+				SomeField  int64  `lvm:"some_field"`
+				ProfileDir string `lvm:"profile_dir"`
+			} `lvm:"config"`
+		}{}
+
+		cfg.Config.SomeField = 1
+		cfg.Config.ProfileDir = "/my/custom/profile_dir"
+
+		testBuffer := &bytes.Buffer{}
+		encoder := lvm2go.NewLexingConfigEncoder(testBuffer)
+
+		if err := encoder.Encode(&cfg); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if testBuffer.String() != `config {
+	some_field = 1
+	profile_dir = "/my/custom/profile_dir"
+}
+` {
+			t.Fatalf("unexpected output:\n%s", testBuffer.String())
+		}
+	})
+
+	t.Run("unstructured", func(t *testing.T) {
+		cfg := map[string]any{}
+
+		cfg["config/some_field"] = int64(1)
+		cfg["config/profile_dir"] = "/my/custom/profile_dir"
+
+		testBuffer := &bytes.Buffer{}
+		encoder := lvm2go.NewLexingConfigEncoder(testBuffer)
+
+		if err := encoder.Encode(&cfg); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if testBuffer.String() != `config {
+	profile_dir = "/my/custom/profile_dir"
+	some_field = 1
+}
+` {
+			t.Fatalf("unexpected output:\n%s", testBuffer.String())
 		}
 	})
 }
