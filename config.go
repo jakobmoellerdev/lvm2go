@@ -326,7 +326,7 @@ func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
 	if err != nil {
 		return fmt.Errorf("failed to read configuration: %v", err)
 	}
-	// keep track of the offset so we can seek back to the start of the configuration
+	// keep track of the readCount so we can seek back to the start of the configuration
 	// after we have finished writing the new configuration.
 	// Since our new configuration will be the same size or larger than the original,
 	offset := len(raw)
@@ -466,58 +466,6 @@ func getStructProcessorAndQuery(v any) (RawOutputProcessor, []string, error) {
 
 		return scanner.Err()
 	}, query, nil
-}
-
-type lvmStructTagFieldSpec struct {
-	prefix string
-	name   string
-	reflect.Value
-}
-
-func (f lvmStructTagFieldSpec) String() string {
-	switch f.Kind() {
-	case reflect.Int64:
-		return fmt.Sprintf("%s = %d", f.name, f.Int())
-	default:
-		return fmt.Sprintf("%s = %q", f.name, f.Value.String())
-	}
-}
-
-func readLVMStructTag(v any) (map[string]lvmStructTagFieldSpec, error) {
-	fields, typeAccessor, valueAccessor, err := accessStructOrPointerToStruct(v)
-	if err != nil {
-		return nil, err
-	}
-
-	tagOrIgnore := func(tag reflect.StructTag) (string, bool) {
-		return tag.Get(LVMConfigStructTag), tag.Get(LVMConfigStructTag) == "-"
-	}
-
-	fieldSpecs := make(map[string]lvmStructTagFieldSpec)
-	for i := range fields {
-		outerField := typeAccessor(i)
-		prefix, ignore := tagOrIgnore(outerField.Tag)
-		if ignore {
-			continue
-		}
-		fields, typeAccessor, valueAccessor, err := accessStructOrPointerToStruct(valueAccessor(i))
-		if err != nil {
-			return nil, err
-		}
-		for j := range fields {
-			innerField := typeAccessor(j)
-			name, ignore := tagOrIgnore(innerField.Tag)
-			if ignore {
-				continue
-			}
-			fieldSpecs[name] = lvmStructTagFieldSpec{
-				prefix,
-				name,
-				valueAccessor(j),
-			}
-		}
-	}
-	return fieldSpecs, nil
 }
 
 // copyWithTimeout copies data from r to w with a timeout.
