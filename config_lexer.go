@@ -192,18 +192,19 @@ func (l *configLexer) Next() ConfigTokens {
 		candidate, size, err := l.dataStream.ReadRune()
 		if err == io.EOF {
 			return ConfigTokens{ConfigTokenEOF}
-		} else if err != nil {
+		}
+		if err != nil {
 			return ConfigTokens{ConfigTokenError(err)}
 		}
 
 		l.readCount += size
 
 		tokenType := l.RuneToTokenType(candidate)
-		// If the token is already known from the rune, return it
 		if tokenType == configTokenTypeNotYetKnown {
 			l.lineBuffer.WriteRune(candidate)
 			continue
 		}
+
 		if tokenType == ConfigTokenTypeEndOfStatement {
 			l.lineBuffer.Reset()
 			l.currentLine++
@@ -215,188 +216,181 @@ func (l *configLexer) Next() ConfigTokens {
 			}}
 		}
 
-		tokens := make(ConfigTokens, 0, 4)
-
 		loc := l.readCount
+		tokens := ConfigTokens{}
 
 		switch tokenType {
 		case ConfigTokenTypeComment:
-			comment, err := l.dataStream.ReadBytes('\n')
-			l.readCount += len(comment)
-
-			trimmedComment := bytes.TrimSpace(comment)
-			tokens = append(
-				tokens,
-				ConfigToken{
-					Type:  ConfigTokenTypeComment,
-					Value: runeToUTF8(candidate),
-					Start: loc,
-					Line:  l.currentLine,
-				},
-				ConfigToken{
-					Type:  ConfigTokenTypeCommentValue,
-					Value: trimmedComment,
-					Start: loc + len(comment) - len(trimmedComment),
-					Line:  l.currentLine,
-				},
-				ConfigToken{
-					Type:  ConfigTokenTypeEndOfStatement,
-					Value: runeToUTF8('\n'),
-					Start: loc + len(comment),
-					Line:  l.currentLine,
-				},
-			)
-
-			if err == io.EOF {
-				return append(tokens, ConfigTokenEOF)
-			} else if err != nil {
-				return append(tokens, ConfigTokenError(err))
-			}
-			l.lineBuffer.Reset()
-			l.currentLine++
+			tokens = l.handleComment(candidate, loc)
 		case ConfigTokenTypeSectionEnd:
-			tokens = append(
-				tokens,
-				ConfigToken{
-					Type:  ConfigTokenTypeSectionEnd,
-					Value: runeToUTF8(candidate),
-					Start: l.readCount,
-					Line:  l.currentLine,
-				},
-			)
+			tokens = append(tokens, ConfigToken{
+				Type:  ConfigTokenTypeSectionEnd,
+				Value: runeToUTF8(candidate),
+				Start: l.readCount,
+				Line:  l.currentLine,
+			})
 		case ConfigTokenTypeSectionStart:
-			section := l.lineBuffer.Bytes()
-			sectionTrimmed := bytes.TrimSpace(section)
-			tokens = append(
-				tokens,
-				ConfigToken{
-					Type:  ConfigTokenTypeSection,
-					Value: bytes.Clone(sectionTrimmed),
-					Start: l.readCount - len(section),
-					Line:  l.currentLine,
-				},
-				ConfigToken{
-					Type:  ConfigTokenTypeSectionStart,
-					Value: runeToUTF8(candidate),
-					Start: l.readCount,
-					Line:  l.currentLine,
-				},
-			)
+			tokens = l.handleSectionStart(candidate, loc)
 		case ConfigTokenTypeAssignment:
-			identifier := bytes.TrimSpace(l.lineBuffer.Bytes())
-			tokens = append(
-				tokens,
-				ConfigToken{
-					Type:  ConfigTokenTypeIdentifier,
-					Value: bytes.Clone(identifier),
-					Start: l.readCount - len(identifier) - 1,
-					Line:  l.currentLine,
-				},
-				ConfigToken{
-					Type:  ConfigTokenTypeAssignment,
-					Value: runeToUTF8(candidate),
-					Start: l.readCount,
-					Line:  l.currentLine,
-				},
-			)
-
-			restOfLine, err := l.dataStream.ReadBytes('\n')
-
-			// If the rest of the line contains a comment, split it
-			if postCommentIdx := bytes.IndexRune(restOfLine, '#'); postCommentIdx != -1 {
-				comment := restOfLine[postCommentIdx:]
-				restOfLineWOComment := restOfLine[:postCommentIdx]
-
-				var valueToken ConfigToken
-				sQidx := bytes.IndexByte(restOfLineWOComment, '"')
-				lQidx := bytes.LastIndexByte(restOfLineWOComment, '"')
-				if sQidx == -1 && lQidx == -1 {
-					trimmedRestOfLine := bytes.TrimSpace(restOfLineWOComment)
-					// If the comment is inside a string, ignore it
-					valueToken = ConfigToken{
-						Type:  ConfigTokenTypeInt64,
-						Value: trimmedRestOfLine,
-						Start: l.readCount + len(restOfLineWOComment) - len(trimmedRestOfLine),
-						Line:  l.currentLine,
-					}
-				} else {
-					trimmedRestOfLine := bytes.TrimSpace(restOfLineWOComment[sQidx:lQidx])
-					valueToken = ConfigToken{
-						Type:  ConfigTokenTypeString,
-						Value: trimmedRestOfLine,
-						Start: l.readCount + len(restOfLineWOComment) - len(trimmedRestOfLine) - 2,
-						Line:  l.currentLine,
-					}
-				}
-
-				commentStart := l.readCount + len(restOfLineWOComment) + 1
-				commentTrimmed := bytes.TrimSpace(bytes.Trim(comment, "#"))
-				tokens = append(
-					tokens,
-					valueToken,
-					ConfigToken{
-						Type:  ConfigTokenTypeComment,
-						Value: runeToUTF8('#'),
-						Start: commentStart,
-						Line:  l.currentLine,
-					},
-					ConfigToken{
-						Type:  ConfigTokenTypeCommentValue,
-						Value: bytes.TrimSpace(commentTrimmed),
-						Start: commentStart + len(comment) - len(commentTrimmed) - 1,
-						Line:  l.currentLine,
-					},
-				)
-			} else {
-				var valueToken ConfigToken
-				sQidx := bytes.IndexByte(restOfLine, '"')
-				lQidx := bytes.LastIndexByte(restOfLine, '"')
-				if sQidx == -1 && lQidx == -1 {
-					trimmedRestOfLine := bytes.TrimSpace(restOfLine)
-					valueToken = ConfigToken{
-						Type:  ConfigTokenTypeInt64,
-						Value: trimmedRestOfLine,
-						Start: l.readCount + len(restOfLine) - len(trimmedRestOfLine),
-						Line:  l.currentLine,
-					}
-				} else {
-					trimmedRestOfLine := bytes.TrimSpace(restOfLine[sQidx+1 : lQidx])
-					valueToken = ConfigToken{
-						Type:  ConfigTokenTypeString,
-						Value: trimmedRestOfLine,
-						Start: l.readCount + len(restOfLine) - len(trimmedRestOfLine) - 2,
-						Line:  l.currentLine,
-					}
-				}
-				tokens = append(tokens, valueToken)
-			}
-
-			l.readCount += len(restOfLine)
-
-			tokens = append(tokens,
-				ConfigToken{
-					Type:  ConfigTokenTypeEndOfStatement,
-					Value: runeToUTF8('\n'),
-					Line:  l.currentLine,
-					Start: l.readCount,
-				},
-			)
-
-			l.lineBuffer.Reset()
-			l.currentLine++
-
-			if err == io.EOF {
-				return append(tokens, ConfigTokenEOF)
-			} else if err != nil {
-				return append(tokens, ConfigTokenError(err))
-			}
+			tokens = l.handleAssignment(candidate, loc)
 		default:
-			err := fmt.Errorf("unexpected token type %v", tokenType)
-			return append(tokens, ConfigTokenError(err))
+			return ConfigTokens{ConfigTokenError(fmt.Errorf("unexpected token type %v", tokenType))}
 		}
 
 		return tokens
 	}
+}
+
+func (l *configLexer) handleComment(candidate rune, loc int) ConfigTokens {
+	comment, err := l.dataStream.ReadBytes('\n')
+	l.readCount += len(comment)
+	trimmedComment := bytes.TrimSpace(comment)
+
+	tokens := ConfigTokens{
+		{
+			Type:  ConfigTokenTypeComment,
+			Value: runeToUTF8(candidate),
+			Start: loc,
+			Line:  l.currentLine,
+		},
+		{
+			Type:  ConfigTokenTypeCommentValue,
+			Value: trimmedComment,
+			Start: loc + len(comment) - len(trimmedComment),
+			Line:  l.currentLine,
+		},
+		{
+			Type:  ConfigTokenTypeEndOfStatement,
+			Value: runeToUTF8('\n'),
+			Start: loc + len(comment),
+			Line:  l.currentLine,
+		},
+	}
+
+	if err == io.EOF {
+		tokens = append(tokens, ConfigTokenEOF)
+	} else if err != nil {
+		tokens = append(tokens, ConfigTokenError(err))
+	}
+	l.lineBuffer.Reset()
+	l.currentLine++
+
+	return tokens
+}
+
+func (l *configLexer) handleSectionStart(candidate rune, loc int) ConfigTokens {
+	section := l.lineBuffer.Bytes()
+	sectionTrimmed := bytes.TrimSpace(section)
+
+	tokens := ConfigTokens{
+		{
+			Type:  ConfigTokenTypeSection,
+			Value: bytes.Clone(sectionTrimmed),
+			Start: loc - len(section),
+			Line:  l.currentLine,
+		},
+		{
+			Type:  ConfigTokenTypeSectionStart,
+			Value: runeToUTF8(candidate),
+			Start: loc,
+			Line:  l.currentLine,
+		},
+	}
+
+	return tokens
+}
+
+func (l *configLexer) handleAssignment(candidate rune, loc int) ConfigTokens {
+	identifier := bytes.TrimSpace(l.lineBuffer.Bytes())
+	tokens := ConfigTokens{
+		{
+			Type:  ConfigTokenTypeIdentifier,
+			Value: bytes.Clone(identifier),
+			Start: loc - len(identifier) - 1,
+			Line:  l.currentLine,
+		},
+		{
+			Type:  ConfigTokenTypeAssignment,
+			Value: runeToUTF8(candidate),
+			Start: loc,
+			Line:  l.currentLine,
+		},
+	}
+
+	restOfLine, err := l.dataStream.ReadBytes('\n')
+	l.readCount += len(restOfLine)
+
+	if postCommentIdx := bytes.IndexRune(restOfLine, '#'); postCommentIdx != -1 {
+		comment := restOfLine[postCommentIdx:]
+		restOfLineWOComment := restOfLine[:postCommentIdx]
+
+		valueToken := l.createValueToken(restOfLineWOComment, loc)
+		commentStart := loc + len(restOfLineWOComment) + 1
+		commentTrimmed := bytes.TrimSpace(bytes.Trim(comment, "#"))
+
+		tokens = append(tokens,
+			valueToken,
+			ConfigToken{
+				Type:  ConfigTokenTypeComment,
+				Value: runeToUTF8('#'),
+				Start: commentStart,
+				Line:  l.currentLine,
+			},
+			ConfigToken{
+				Type:  ConfigTokenTypeCommentValue,
+				Value: bytes.TrimSpace(commentTrimmed),
+				Start: commentStart + len(comment) - len(commentTrimmed) - 1,
+				Line:  l.currentLine,
+			},
+		)
+	} else {
+		valueToken := l.createValueToken(restOfLine, loc)
+		tokens = append(tokens, valueToken)
+	}
+
+	tokens = append(tokens,
+		ConfigToken{
+			Type:  ConfigTokenTypeEndOfStatement,
+			Value: runeToUTF8('\n'),
+			Line:  l.currentLine,
+			Start: l.readCount,
+		},
+	)
+
+	l.lineBuffer.Reset()
+	l.currentLine++
+
+	if err == io.EOF {
+		tokens = append(tokens, ConfigTokenEOF)
+	} else if err != nil {
+		tokens = append(tokens, ConfigTokenError(err))
+	}
+
+	return tokens
+}
+
+func (l *configLexer) createValueToken(line []byte, loc int) ConfigToken {
+	sQidx := bytes.IndexByte(line, '"')
+	lQidx := bytes.LastIndexByte(line, '"')
+	var valueToken ConfigToken
+	if sQidx == -1 && lQidx == -1 {
+		trimmedLine := bytes.TrimSpace(line)
+		valueToken = ConfigToken{
+			Type:  ConfigTokenTypeInt64,
+			Value: trimmedLine,
+			Start: loc + len(line) - len(trimmedLine),
+			Line:  l.currentLine,
+		}
+	} else {
+		trimmedLine := bytes.TrimSpace(line[sQidx+1 : lQidx])
+		valueToken = ConfigToken{
+			Type:  ConfigTokenTypeString,
+			Value: trimmedLine,
+			Start: loc + len(line) - len(trimmedLine) - 2,
+			Line:  l.currentLine,
+		}
+	}
+	return valueToken
 }
 
 func (l *configLexer) RuneToTokenType(r rune) ConfigTokenType {

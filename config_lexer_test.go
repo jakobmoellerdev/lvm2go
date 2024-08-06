@@ -92,6 +92,8 @@ func TestConfigLexer(t *testing.T) {
 19:635	EndOfStatement
 
 20:636	SectionEnd }
+21:637	EndOfStatement
+
 -1:-1	EOF
 `)
 	if !stringRepresentation {
