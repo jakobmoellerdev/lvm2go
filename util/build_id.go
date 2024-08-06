@@ -1,4 +1,4 @@
-package lvm2go
+package util
 
 import (
 	"fmt"

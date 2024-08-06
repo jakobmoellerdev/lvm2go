@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	. "github.com/jakobmoellerdev/lvm2go"
+	. "github.com/jakobmoellerdev/lvm2go/config"
 )
 
 func Test_RawConfig(t *testing.T) {

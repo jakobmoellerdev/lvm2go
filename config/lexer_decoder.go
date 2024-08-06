@@ -1,4 +1,4 @@
-package lvm2go
+package config
 
 import (
 	"fmt"
@@ -6,51 +6,38 @@ import (
 	"strconv"
 )
 
-type LexingConfigDecoder interface {
-	ConfigLexerReader
+type LexingDecoder interface {
 	Decode(v any) error
 }
 
-type LexingConfigEncoder interface {
-	Encode(v any) error
-}
-
-type StructuredLexingConfigDecoder interface {
+type StructuredLexingDecoder interface {
 	DecodeStructured(v any) error
 }
 
-type UnstructuredLexingConfigDecoder interface {
+type UnstructuredLexingDecoder interface {
 	DecodeUnstructured(v any) error
 }
 
-func NewLexingConfigDecoder(reader io.Reader) LexingConfigDecoder {
-	return &configLexDecoder{
-		ConfigLexerReader: NewBufferedConfigLexer(reader),
+func NewLexingConfigDecoder(reader io.Reader) LexingDecoder {
+	return &lexDecoder{
+		LexerReader: NewBufferedLexer(reader),
 	}
 }
 
-type configLexDecoder struct {
-	ConfigLexerReader
+type lexDecoder struct {
+	LexerReader
 }
 
-var _ LexingConfigDecoder = &configLexDecoder{}
+var _ LexingDecoder = &lexDecoder{}
 
-func (d *configLexDecoder) Decode(v any) error {
+func (d *lexDecoder) Decode(v any) error {
 	if isUnstructuredMap(v) {
 		return d.DecodeUnstructured(v)
 	}
 	return d.DecodeStructured(v)
 }
 
-func isUnstructuredMap(v any) bool {
-	switch v.(type) {
-	case map[string]interface{}, *map[string]interface{}:
-		return true
-	}
-	return false
-}
-
-func (d *configLexDecoder) DecodeUnstructured(v any) error {
+func (d *lexDecoder) DecodeUnstructured(v any) error {
 	lexTree, err := d.Lex()
 	if err != nil {
 		return err
@@ -67,21 +54,21 @@ func (d *configLexDecoder) DecodeUnstructured(v any) error {
 
 	var section string
 	for i, node := range lexTree {
-		if node.Type == ConfigTokenTypeSection {
+		if node.Type == TokenTypeSection {
 			section = string(node.Value)
 			continue
 		}
-		if node.Type == ConfigTokenTypeEndOfSection {
+		if node.Type == TokenTypeEndOfSection {
 			section = ""
 			continue
 		}
-		if node.Type == ConfigTokenTypeAssignment {
+		if node.Type == TokenTypeAssignment {
 			kidx := i - 1
 			if kidx < 0 {
 				return fmt.Errorf("expected identifier before assignment")
 			}
 			keyInTree := lexTree[i-1]
-			if keyInTree.Type != ConfigTokenTypeIdentifier {
+			if keyInTree.Type != TokenTypeIdentifier {
 				return fmt.Errorf("expected identifier before assignment, got %s", keyInTree.Type)
 			}
 			key := string(keyInTree.Value)
@@ -97,11 +84,11 @@ func (d *configLexDecoder) DecodeUnstructured(v any) error {
 			}
 
 			switch valueInTree.Type {
-			case ConfigTokenTypeString:
+			case TokenTypeString:
 				m[key] = string(valueInTree.Value)
-			case ConfigTokenTypeInt64:
+			case TokenTypeInt64:
 				if val, err := strconv.ParseInt(string(valueInTree.Value), 10, 64); err != nil {
-					return fmt.Errorf("could not parse int64: %w", err)
+					return fmt.Errorf("could not Parse int64: %w", err)
 				} else {
 					m[key] = val
 				}
@@ -113,58 +100,58 @@ func (d *configLexDecoder) DecodeUnstructured(v any) error {
 	return nil
 }
 
-func (d *configLexDecoder) DecodeStructured(v any) error {
-	fieldSpecs, err := DecodeLVMStructTagFieldMappings(v)
+func (d *lexDecoder) DecodeStructured(v any) error {
+	fieldSpecs, err := DecodeFieldMappings(v)
 	if err != nil {
 		return err
 	}
-	decoder := &structuredConfigLexDecoder{
-		ConfigLexerReader:      d.ConfigLexerReader,
-		StructuredFieldMapping: fieldSpecs,
+	decoder := &structuredLexingDecoder{
+		LexerReader:            d.LexerReader,
+		structuredFieldMapping: fieldSpecs,
 	}
 	return decoder.Decode()
 }
 
-func newLexingConfigDecoderWithFieldMapping(
+func NewLexingConfigDecoderWithFieldMapping(
 	reader io.Reader,
-	fieldSpecs map[string]LVMStructTagFieldMapping,
-) *structuredConfigLexDecoder {
-	return &structuredConfigLexDecoder{
-		ConfigLexerReader:      NewBufferedConfigLexer(reader),
-		StructuredFieldMapping: fieldSpecs,
-		MapHints:               newHintsFromFieldSpecs(fieldSpecs),
+	fieldSpecs LVMStructTagFieldMappings,
+) *structuredLexingDecoder {
+	return &structuredLexingDecoder{
+		LexerReader:            NewBufferedLexer(reader),
+		structuredFieldMapping: fieldSpecs,
+		mapHints:               newHintsFromFieldSpecs(fieldSpecs),
 	}
 }
 
-func newHintsFromFieldSpecs(keys map[string]LVMStructTagFieldMapping) map[string]structuredDecodeHint {
+func newHintsFromFieldSpecs(mappings LVMStructTagFieldMappings) map[string]structuredDecodeHint {
 	hints := make(map[string]structuredDecodeHint)
-	for _, key := range keys {
-		hints[key.name] = structuredDecodeHint{
-			section: key.prefix,
+	for _, key := range mappings {
+		hints[key.Name] = structuredDecodeHint{
+			section: key.Prefix,
 		}
 	}
 	return hints
 }
 
-type structuredConfigLexDecoder struct {
-	ConfigLexerReader
-	StructuredFieldMapping map[string]LVMStructTagFieldMapping
-	MapHints               map[string]structuredDecodeHint
+type structuredLexingDecoder struct {
+	LexerReader
+	structuredFieldMapping LVMStructTagFieldMappings
+	mapHints               map[string]structuredDecodeHint
 }
 
 type structuredDecodeHint struct {
 	section string
 }
 
-func (d *structuredConfigLexDecoder) Decode() error {
-	fieldSpecsKeyed := make(map[string]map[string]LVMStructTagFieldMapping)
-	for _, fieldSpec := range d.StructuredFieldMapping {
-		keyed, ok := fieldSpecsKeyed[fieldSpec.prefix]
+func (d *structuredLexingDecoder) Decode() error {
+	fieldSpecsKeyed := make(map[string]LVMStructTagFieldMappings)
+	for _, fieldSpec := range d.structuredFieldMapping {
+		keyed, ok := fieldSpecsKeyed[fieldSpec.Prefix]
 		if !ok {
-			fieldSpecsKeyed[fieldSpec.prefix] = make(map[string]LVMStructTagFieldMapping)
-			keyed = fieldSpecsKeyed[fieldSpec.prefix]
+			fieldSpecsKeyed[fieldSpec.Prefix] = make(LVMStructTagFieldMappings)
+			keyed = fieldSpecsKeyed[fieldSpec.Prefix]
 		}
-		keyed[fieldSpec.name] = fieldSpec
+		keyed[fieldSpec.Name] = fieldSpec
 	}
 
 	lexTree, err := d.Lex()
@@ -174,21 +161,21 @@ func (d *structuredConfigLexDecoder) Decode() error {
 
 	var section string
 	for i, node := range lexTree {
-		if node.Type == ConfigTokenTypeSection {
+		if node.Type == TokenTypeSection {
 			section = string(node.Value)
 			continue
 		}
-		if node.Type == ConfigTokenTypeEndOfSection {
+		if node.Type == TokenTypeEndOfSection {
 			section = ""
 			continue
 		}
-		if node.Type == ConfigTokenTypeAssignment {
+		if node.Type == TokenTypeAssignment {
 			kidx := i - 1
 			if kidx < 0 {
 				return fmt.Errorf("expected identifier before assignment")
 			}
 			keyInTree := lexTree[i-1]
-			if keyInTree.Type != ConfigTokenTypeIdentifier {
+			if keyInTree.Type != TokenTypeIdentifier {
 				return fmt.Errorf("expected identifier before assignment, got %s", keyInTree.Type)
 			}
 			key := string(keyInTree.Value)
@@ -199,8 +186,8 @@ func (d *structuredConfigLexDecoder) Decode() error {
 			}
 			valueInTree := lexTree[i+1]
 
-			if d.MapHints != nil {
-				if hint, ok := d.MapHints[key]; ok {
+			if d.mapHints != nil {
+				if hint, ok := d.mapHints[key]; ok {
 					if hint.section != "" {
 						section = hint.section
 					}
@@ -217,11 +204,11 @@ func (d *structuredConfigLexDecoder) Decode() error {
 			}
 
 			switch valueInTree.Type {
-			case ConfigTokenTypeString:
+			case TokenTypeString:
 				field.SetString(string(valueInTree.Value))
-			case ConfigTokenTypeInt64:
+			case TokenTypeInt64:
 				if val, err := strconv.ParseInt(string(valueInTree.Value), 10, 64); err != nil {
-					return fmt.Errorf("could not parse int64: %w", err)
+					return fmt.Errorf("could not Parse int64: %w", err)
 				} else {
 					field.SetInt(val)
 				}

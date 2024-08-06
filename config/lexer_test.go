@@ -1,11 +1,11 @@
-package lvm2go_test
+package config_test
 
 import (
 	"bytes"
 	_ "embed"
 	"testing"
 
-	"github.com/jakobmoellerdev/lvm2go"
+	"github.com/jakobmoellerdev/lvm2go/config"
 )
 
 //go:embed testdata/lextest.conf
@@ -15,7 +15,7 @@ var lexerTest []byte
 var lexTestOutput string
 
 func TestConfigLexer(t *testing.T) {
-	lexer := lvm2go.NewBufferedConfigLexer(bytes.NewReader(lexerTest))
+	lexer := config.NewBufferedLexer(bytes.NewReader(lexerTest))
 
 	tokens, err := lexer.Lex()
 	if err != nil {
@@ -25,7 +25,7 @@ func TestConfigLexer(t *testing.T) {
 		t.Fatalf("unexpected output:\n%s", tokens.String())
 	}
 
-	data, err := lvm2go.ConfigTokensToBytes(tokens)
+	data, err := config.TokensToBytes(tokens)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestConfigLexer(t *testing.T) {
 func TestNewLexingConfigDecoder(t *testing.T) {
 
 	t.Run("structured", func(t *testing.T) {
-		decoder := lvm2go.NewLexingConfigDecoder(bytes.NewReader(lexerTest))
+		decoder := config.NewLexingConfigDecoder(bytes.NewReader(lexerTest))
 		cfg := struct {
 			Config struct {
 				SomeField  int64  `lvm:"some_field"`
@@ -58,7 +58,7 @@ func TestNewLexingConfigDecoder(t *testing.T) {
 	})
 
 	t.Run("unstructured", func(t *testing.T) {
-		decoder := lvm2go.NewLexingConfigDecoder(bytes.NewReader(lexerTest))
+		decoder := config.NewLexingConfigDecoder(bytes.NewReader(lexerTest))
 		cfg := map[string]any{}
 
 		if err := decoder.Decode(&cfg); err != nil {
@@ -76,29 +76,31 @@ func TestNewLexingConfigDecoder(t *testing.T) {
 
 func TestNewLexingConfigEncoder(t *testing.T) {
 	t.Run("structured", func(t *testing.T) {
-		cfg := struct {
-			Config struct {
-				SomeField  int64  `lvm:"some_field"`
-				ProfileDir string `lvm:"profile_dir"`
-			} `lvm:"config"`
-		}{}
+		for i := 0; i < 20; i++ {
+			cfg := struct {
+				Config struct {
+					SomeField  int64  `lvm:"some_field"`
+					ProfileDir string `lvm:"profile_dir"`
+				} `lvm:"config"`
+			}{}
 
-		cfg.Config.SomeField = 1
-		cfg.Config.ProfileDir = "/my/custom/profile_dir"
+			cfg.Config.SomeField = 1
+			cfg.Config.ProfileDir = "/my/custom/profile_dir"
 
-		testBuffer := &bytes.Buffer{}
-		encoder := lvm2go.NewLexingConfigEncoder(testBuffer)
+			testBuffer := &bytes.Buffer{}
+			encoder := config.NewLexingEncoder(testBuffer)
 
-		if err := encoder.Encode(&cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+			if err := encoder.Encode(&cfg); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
-		if testBuffer.String() != `config {
-	some_field = 1
+			if testBuffer.String() != `config {
 	profile_dir = "/my/custom/profile_dir"
+	some_field = 1
 }
 ` {
-			t.Fatalf("unexpected output:\n%s", testBuffer.String())
+				t.Fatalf("unexpected output:\n%s", testBuffer.String())
+			}
 		}
 	})
 
@@ -108,20 +110,21 @@ func TestNewLexingConfigEncoder(t *testing.T) {
 		cfg["config/some_field"] = int64(1)
 		cfg["config/profile_dir"] = "/my/custom/profile_dir"
 
-		testBuffer := &bytes.Buffer{}
-		encoder := lvm2go.NewLexingConfigEncoder(testBuffer)
+		for i := 0; i < 20; i++ {
+			testBuffer := &bytes.Buffer{}
+			encoder := config.NewLexingEncoder(testBuffer)
 
-		if err := encoder.Encode(&cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+			if err := encoder.Encode(&cfg); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
-		if testBuffer.String() != `config {
+			if testBuffer.String() != `config {
 	profile_dir = "/my/custom/profile_dir"
 	some_field = 1
 }
 ` {
-			// TODO Fix me sometimes failing
-			t.Fatalf("unexpected output:\n%s", testBuffer.String())
+				t.Fatalf("unexpected output:\n%s", testBuffer.String())
+			}
 		}
 	})
 }

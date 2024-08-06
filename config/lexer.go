@@ -1,4 +1,4 @@
-package lvm2go
+package config
 
 import (
 	"bufio"
@@ -6,19 +6,22 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 	"unicode/utf8"
+
+	"github.com/jakobmoellerdev/lvm2go/util"
 )
 
-// ConfigLexerReader is an interface for reading tokens from a configuration file
+// LexerReader is an interface for reading tokens from a configuration file
 // The lexer reads the configuration file and returns ConfigTokens that can be used to
 // decode the configuration file into a struct or do other operations.
-// Any returned Token is one of ConfigTokenType, for more details see the ConfigTokenType documentation.
-type ConfigLexerReader interface {
+// Any returned Token is one of TokenType, for more details see the TokenType documentation.
+type LexerReader interface {
 	// Lex reads the configuration file and returns all tokens in the file or an error if one occurs
 	// The lexer will return an EOF token when the end of the file is reached.
 	// The lexer will return an Error token when an error occurs.
 	// Lex can be used to read the entire configuration file in one operation and to decouple reading from parsing.
-	Lex() (ConfigTokens, error)
+	Lex() (Tokens, error)
 
 	// Next returns the next set of tokens in the configuration file that can be read in a single operation
 	// Note that using Next() will not fail out if an error occurs, it will return the ConfigTokenError in the tokens
@@ -26,128 +29,128 @@ type ConfigLexerReader interface {
 	// The lexer will return an EOF token when the end of the file is reached.
 	// The lexer will return an Error token when an error occurs.
 	// Next can be used to implement efficient parsers that only read the next token when needed.
-	Next() ConfigTokens
+	Next() Tokens
 }
 
-func NewBufferedConfigLexer(dataStream io.Reader) ConfigLexerReader {
-	return &ConfigLexer{
-		current:     ConfigTokenTypeSOF,
+func NewBufferedLexer(dataStream io.Reader) LexerReader {
+	return &Lexer{
+		current:     TokenTypeSOF,
 		dataStream:  bufio.NewReaderSize(dataStream, 4096),
 		lineBuffer:  bytes.NewBuffer(make([]byte, 256)),
 		currentLine: 1,
 	}
 }
 
-type ConfigTokenType rune
+type TokenType rune
 
 const (
-	// ConfigTokenTypeComment represents comments such as
+	// TokenTypeComment represents comments such as
 	// # This is a comment
-	ConfigTokenTypeComment ConfigTokenType = iota
+	TokenTypeComment TokenType = iota
 
-	ConfigTokenTypeCommentValue ConfigTokenType = iota
+	TokenTypeCommentValue TokenType = iota
 
-	// ConfigTokenTypeEndOfStatement represents the end of a statement
+	// TokenTypeEndOfStatement represents the end of a statement
 	// This can be a newline.
-	ConfigTokenTypeEndOfStatement ConfigTokenType = iota
+	TokenTypeEndOfStatement TokenType = iota
 
-	// ConfigTokenTypeSection represents a section name
+	// TokenTypeSection represents a section name
 	// Example:
 	// config { ← This is a section named "config"
 	//     key = value
 	// }
-	ConfigTokenTypeSection ConfigTokenType = iota
+	TokenTypeSection TokenType = iota
 
-	// ConfigTokenTypeStartOfSection represents the start of a section
+	// TokenTypeStartOfSection represents the start of a section
 	// Example:
 	// config { ← This is a section start token "{"
-	ConfigTokenTypeStartOfSection ConfigTokenType = iota
+	TokenTypeStartOfSection TokenType = iota
 
-	// ConfigTokenTypeEndOfSection represents the end of a section
+	// TokenTypeEndOfSection represents the end of a section
 	// Example:
 	// config { ← This is a section end token "}"
-	ConfigTokenTypeEndOfSection ConfigTokenType = iota
+	TokenTypeEndOfSection TokenType = iota
 
-	// ConfigTokenTypeString represents a string
+	// TokenTypeString represents a string
 	// Example:
 	// key = "value" ← This is a string token "value"
-	ConfigTokenTypeString ConfigTokenType = iota
+	TokenTypeString TokenType = iota
 
-	// ConfigTokenTypeIdentifier represents an identifier
+	// TokenTypeIdentifier represents an identifier
 	// Example:
 	// key = value ← This is an identifier token "key"
-	ConfigTokenTypeIdentifier ConfigTokenType = iota
+	TokenTypeIdentifier TokenType = iota
 
-	// ConfigTokenTypeAssignment represents an assignment
+	// TokenTypeAssignment represents an assignment
 	// Example:
 	// key = value ← This is an assignment token "="
-	ConfigTokenTypeAssignment ConfigTokenType = iota
+	TokenTypeAssignment TokenType = iota
 
-	// ConfigTokenTypeInt64 represents an int64
+	// TokenTypeInt64 represents an int64
 	// Example:
 	// key = 1234 ← This is an int64 token "1234"
-	ConfigTokenTypeInt64 ConfigTokenType = iota
+	TokenTypeInt64 TokenType = iota
 
-	// ConfigTokenTypeSOF represents the start of the file
-	ConfigTokenTypeSOF ConfigTokenType = iota
+	// TokenTypeSOF represents the start of the file
+	TokenTypeSOF TokenType = iota
 
-	// ConfigTokenTypeEOF represents the end of the file
-	ConfigTokenTypeEOF ConfigTokenType = iota
+	// TokenTypeEOF represents the end of the file
+	TokenTypeEOF TokenType = iota
 
-	ConfigTokenTypeError ConfigTokenType = iota
+	TokenTypeError TokenType = iota
 
-	// configTokenTypeNotYetKnown represents a token that has not yet been lexed
-	configTokenTypeNotYetKnown ConfigTokenType = iota
+	// TokenTypeNotYetKnown represents a token that has not yet been lexed
+	TokenTypeNotYetKnown TokenType = iota
 )
 
-func (t ConfigTokenType) String() string {
+func (t TokenType) String() string {
 	switch t {
-	case ConfigTokenTypeComment:
+	case TokenTypeComment:
 		return "Comment"
-	case ConfigTokenTypeCommentValue:
+	case TokenTypeCommentValue:
 		return "CommentValue"
-	case ConfigTokenTypeEndOfStatement:
+	case TokenTypeEndOfStatement:
 		return "EndOfStatement"
-	case ConfigTokenTypeSection:
+	case TokenTypeSection:
 		return "Section"
-	case ConfigTokenTypeStartOfSection:
+	case TokenTypeStartOfSection:
 		return "SectionStart"
-	case ConfigTokenTypeEndOfSection:
+	case TokenTypeEndOfSection:
 		return "SectionEnd"
-	case ConfigTokenTypeString:
+	case TokenTypeString:
 		return "String"
-	case ConfigTokenTypeIdentifier:
+	case TokenTypeIdentifier:
 		return "Identifier"
-	case ConfigTokenTypeAssignment:
+	case TokenTypeAssignment:
 		return "Assignment"
-	case ConfigTokenTypeInt64:
+	case TokenTypeInt64:
 		return "Int64"
-	case ConfigTokenTypeSOF:
+	case TokenTypeSOF:
 		return "SOF"
-	case ConfigTokenTypeEOF:
+	case TokenTypeEOF:
 		return "EOF"
-	case ConfigTokenTypeError:
+	case TokenTypeError:
 		return "Error"
 	default:
 		return "Unknown"
 	}
 }
 
-type ConfigLexer struct {
+type Lexer struct {
 	// dataStream is the stream of data to be lexed
 	dataStream *bufio.Reader
 
 	// lineBuffer is a buffer to store the current line being lexed in case of lookbehind
 	lineBuffer *bytes.Buffer
 
-	current     ConfigTokenType
+	current     TokenType
 	readCount   int
 	currentLine int
 }
 
-type ConfigTokens []*ConfigToken
+type Tokens []*Token
 
-func (t ConfigTokens) String() string {
+func (t Tokens) String() string {
 	builder := strings.Builder{}
 	for _, token := range t {
 		builder.WriteString(token.String())
@@ -156,7 +159,7 @@ func (t ConfigTokens) String() string {
 	return builder.String()
 }
 
-func (t ConfigTokens) minimumSize() int {
+func (t Tokens) minimumSize() int {
 	size := 0
 	for _, token := range t {
 		size += len(token.Value)
@@ -164,22 +167,22 @@ func (t ConfigTokens) minimumSize() int {
 	return size
 }
 
-type configTokensByIdentifier map[string]ConfigTokens
+type configTokensByIdentifier map[string]Tokens
 
-func assignmentsWithSections(t ConfigTokens) configTokensByIdentifier {
+func AssignmentsWithSections(t Tokens) configTokensByIdentifier {
 	sectionIndex := -1
-	assignments := make(map[string]ConfigTokens)
+	assignments := make(map[string]Tokens)
 	for i, token := range t {
-		if token.Type == ConfigTokenTypeSection {
+		if token.Type == TokenTypeSection {
 			sectionIndex = i
 			continue
 		}
 
-		if token.Type != ConfigTokenTypeAssignment {
+		if token.Type != TokenTypeAssignment {
 			continue
 		}
 
-		assignments[string(t[i-1].Value)] = ConfigTokens{
+		assignments[string(t[i-1].Value)] = Tokens{
 			t[sectionIndex],
 			t[i-1],
 			token,
@@ -189,7 +192,7 @@ func assignmentsWithSections(t ConfigTokens) configTokensByIdentifier {
 	return assignments
 }
 
-func (a configTokensByIdentifier) overrideWith(other configTokensByIdentifier) (notFound ConfigTokens) {
+func (a configTokensByIdentifier) OverrideWith(other configTokensByIdentifier) (notFound Tokens) {
 	for key, value := range other {
 		v, ok := a[key]
 		if !ok {
@@ -201,41 +204,41 @@ func (a configTokensByIdentifier) overrideWith(other configTokensByIdentifier) (
 	return
 }
 
-func appendAssignmentsAtEndOfSections(into ConfigTokens, toAdd ConfigTokens) ConfigTokens {
+func AppendAssignmentsAtEndOfSections(into Tokens, toAdd Tokens) Tokens {
 	section := ""
-	tokens := ConfigTokens{}
+	tokens := Tokens{}
 	for i, token := range into {
 		tokens = append(tokens, token)
-		if token.Type == ConfigTokenTypeSection {
+		if token.Type == TokenTypeSection {
 			section = string(token.Value)
 			continue
 		}
-		if token.Type == ConfigTokenTypeEndOfSection {
-			candidates := ConfigTokens{}
+		if token.Type == TokenTypeEndOfSection {
+			candidates := Tokens{}
 			for j, token := range toAdd {
-				if token.Type != ConfigTokenTypeAssignment {
+				if token.Type != TokenTypeAssignment {
 					continue
 				}
 				inSection := section != ""
-				isID := toAdd[j-1].Type == ConfigTokenTypeIdentifier
-				isSection := toAdd[j-2].Type == ConfigTokenTypeSection
+				isID := toAdd[j-1].Type == TokenTypeIdentifier
+				isSection := toAdd[j-2].Type == TokenTypeSection
 				if inSection && isID && isSection && section == string(toAdd[j-2].Value) {
 					candidates = append(candidates,
-						&ConfigToken{
-							Type:  ConfigTokenTypeComment,
+						&Token{
+							Type:  TokenTypeComment,
 							Value: runeToUTF8('#'),
 						},
-						&ConfigToken{
-							Type:  ConfigTokenTypeCommentValue,
+						&Token{
+							Type:  TokenTypeCommentValue,
 							Value: []byte(generateLVMConfigEditComment()),
 						},
-						&ConfigToken{
-							Type:  ConfigTokenTypeEndOfStatement,
+						&Token{
+							Type:  TokenTypeEndOfStatement,
 							Value: runeToUTF8('\n'),
 						},
 						toAdd[j-1], token, toAdd[j+1],
-						&ConfigToken{
-							Type:  ConfigTokenTypeEndOfStatement,
+						&Token{
+							Type:  TokenTypeEndOfStatement,
 							Value: runeToUTF8('\n'),
 						})
 				}
@@ -247,18 +250,18 @@ func appendAssignmentsAtEndOfSections(into ConfigTokens, toAdd ConfigTokens) Con
 	return tokens
 }
 
-func (t ConfigTokens) InSection(section string) ConfigTokens {
-	tokensInSection := ConfigTokens{}
+func (t Tokens) InSection(section string) Tokens {
+	tokensInSection := Tokens{}
 	for _, token := range t {
-		if token.Type == ConfigTokenTypeSection {
+		if token.Type == TokenTypeSection {
 			if inSection := string(token.Value) == section; inSection {
 				continue
 			}
 		}
-		if token.Type == ConfigTokenTypeStartOfSection {
+		if token.Type == TokenTypeStartOfSection {
 			continue
 		}
-		if token.Type == ConfigTokenTypeEndOfSection {
+		if token.Type == TokenTypeEndOfSection {
 			break
 		}
 		tokensInSection = append(tokensInSection, token)
@@ -266,14 +269,14 @@ func (t ConfigTokens) InSection(section string) ConfigTokens {
 	return tokensInSection
 }
 
-type ConfigToken struct {
-	Type        ConfigTokenType
+type Token struct {
+	Type        TokenType
 	Value       []byte
 	Err         error
 	Line, Start int
 }
 
-func (t ConfigToken) String() string {
+func (t Token) String() string {
 	builder := strings.Builder{}
 	builder.WriteString(fmt.Sprintf("%d:%d\t", t.Line, t.Start))
 	builder.WriteString(t.Type.String())
@@ -286,24 +289,24 @@ func (t ConfigToken) String() string {
 	return builder.String()
 }
 
-var ConfigTokenEOF = &ConfigToken{Type: ConfigTokenTypeEOF, Start: -1, Line: -1}
+var TokenEOF = &Token{Type: TokenTypeEOF, Start: -1, Line: -1}
 
-func ConfigTokenError(err error) *ConfigToken {
-	return &ConfigToken{Type: ConfigTokenTypeError, Err: err, Start: -1, Line: -1}
+func TokenError(err error) *Token {
+	return &Token{Type: TokenTypeError, Err: err, Start: -1, Line: -1}
 }
 
-func (l *ConfigLexer) Lex() (ConfigTokens, error) {
-	tokens := make(ConfigTokens, 0, 4)
+func (l *Lexer) Lex() (Tokens, error) {
+	tokens := make(Tokens, 0, 4)
 	for {
 		tokensFromNext := l.Next()
 		tokens = append(tokens, tokensFromNext...)
 
 		// If the next token is an EOF or an error, return the tokens
 		for _, next := range tokensFromNext {
-			if next.Type == ConfigTokenTypeEOF {
+			if next.Type == TokenTypeEOF {
 				return tokens, nil
 			}
-			if next.Type == ConfigTokenTypeError {
+			if next.Type == TokenTypeError {
 				return tokens, next.Err
 			}
 		}
@@ -311,30 +314,30 @@ func (l *ConfigLexer) Lex() (ConfigTokens, error) {
 }
 
 // Next returns the next token in the stream
-func (l *ConfigLexer) Next() ConfigTokens {
+func (l *Lexer) Next() Tokens {
 	l.lineBuffer.Reset()
 	for {
 		candidate, size, err := l.dataStream.ReadRune()
 		if err == io.EOF {
-			return ConfigTokens{ConfigTokenEOF}
+			return Tokens{TokenEOF}
 		}
 		if err != nil {
-			return ConfigTokens{ConfigTokenError(err)}
+			return Tokens{TokenError(err)}
 		}
 
 		l.readCount += size
 
 		tokenType := l.RuneToTokenType(candidate)
-		if tokenType == configTokenTypeNotYetKnown {
+		if tokenType == TokenTypeNotYetKnown {
 			l.lineBuffer.WriteRune(candidate)
 			continue
 		}
 
-		if tokenType == ConfigTokenTypeEndOfStatement {
+		if tokenType == TokenTypeEndOfStatement {
 			l.lineBuffer.Reset()
 			l.currentLine++
-			return ConfigTokens{{
-				Type:  ConfigTokenTypeEndOfStatement,
+			return Tokens{{
+				Type:  TokenTypeEndOfStatement,
 				Value: runeToUTF8(candidate),
 				Start: l.readCount,
 				Line:  l.currentLine,
@@ -342,50 +345,50 @@ func (l *ConfigLexer) Next() ConfigTokens {
 		}
 
 		loc := l.readCount
-		tokens := ConfigTokens{}
+		tokens := Tokens{}
 
 		switch tokenType {
-		case ConfigTokenTypeComment:
+		case TokenTypeComment:
 			tokens = l.newComment(candidate, loc)
-		case ConfigTokenTypeEndOfSection:
-			tokens = append(tokens, &ConfigToken{
-				Type:  ConfigTokenTypeEndOfSection,
+		case TokenTypeEndOfSection:
+			tokens = append(tokens, &Token{
+				Type:  TokenTypeEndOfSection,
 				Value: runeToUTF8(candidate),
 				Start: l.readCount,
 				Line:  l.currentLine,
 			})
-		case ConfigTokenTypeStartOfSection:
+		case TokenTypeStartOfSection:
 			tokens = l.newSectionStart(candidate, loc)
-		case ConfigTokenTypeAssignment:
+		case TokenTypeAssignment:
 			tokens = l.newAssignment(candidate, loc)
 		default:
-			return ConfigTokens{ConfigTokenError(fmt.Errorf("unexpected token type %v", tokenType))}
+			return Tokens{TokenError(fmt.Errorf("unexpected token type %v", tokenType))}
 		}
 
 		return tokens
 	}
 }
 
-func (l *ConfigLexer) newComment(candidate rune, loc int) ConfigTokens {
+func (l *Lexer) newComment(candidate rune, loc int) Tokens {
 	comment, err := l.dataStream.ReadBytes('\n')
 	l.readCount += len(comment)
 	trimmedComment := bytes.TrimSpace(comment)
 
-	tokens := ConfigTokens{
+	tokens := Tokens{
 		{
-			Type:  ConfigTokenTypeComment,
+			Type:  TokenTypeComment,
 			Value: runeToUTF8(candidate),
 			Start: loc,
 			Line:  l.currentLine,
 		},
 		{
-			Type:  ConfigTokenTypeCommentValue,
+			Type:  TokenTypeCommentValue,
 			Value: trimmedComment,
 			Start: loc + len(comment) - len(trimmedComment),
 			Line:  l.currentLine,
 		},
 		{
-			Type:  ConfigTokenTypeEndOfStatement,
+			Type:  TokenTypeEndOfStatement,
 			Value: runeToUTF8('\n'),
 			Start: loc + len(comment),
 			Line:  l.currentLine,
@@ -393,9 +396,9 @@ func (l *ConfigLexer) newComment(candidate rune, loc int) ConfigTokens {
 	}
 
 	if err == io.EOF {
-		tokens = append(tokens, ConfigTokenEOF)
+		tokens = append(tokens, TokenEOF)
 	} else if err != nil {
-		tokens = append(tokens, ConfigTokenError(err))
+		tokens = append(tokens, TokenError(err))
 	}
 	l.lineBuffer.Reset()
 	l.currentLine++
@@ -403,19 +406,19 @@ func (l *ConfigLexer) newComment(candidate rune, loc int) ConfigTokens {
 	return tokens
 }
 
-func (l *ConfigLexer) newSectionStart(candidate rune, loc int) ConfigTokens {
+func (l *Lexer) newSectionStart(candidate rune, loc int) Tokens {
 	section := l.lineBuffer.Bytes()
 	sectionTrimmed := bytes.TrimSpace(section)
 
-	tokens := ConfigTokens{
+	tokens := Tokens{
 		{
-			Type:  ConfigTokenTypeSection,
+			Type:  TokenTypeSection,
 			Value: bytes.Clone(sectionTrimmed),
 			Start: loc - len(section),
 			Line:  l.currentLine,
 		},
 		{
-			Type:  ConfigTokenTypeStartOfSection,
+			Type:  TokenTypeStartOfSection,
 			Value: runeToUTF8(candidate),
 			Start: loc,
 			Line:  l.currentLine,
@@ -425,17 +428,17 @@ func (l *ConfigLexer) newSectionStart(candidate rune, loc int) ConfigTokens {
 	return tokens
 }
 
-func (l *ConfigLexer) newAssignment(candidate rune, loc int) ConfigTokens {
+func (l *Lexer) newAssignment(candidate rune, loc int) Tokens {
 	identifier := bytes.TrimSpace(l.lineBuffer.Bytes())
-	tokens := ConfigTokens{
+	tokens := Tokens{
 		{
-			Type:  ConfigTokenTypeIdentifier,
+			Type:  TokenTypeIdentifier,
 			Value: bytes.Clone(identifier),
 			Start: loc - len(identifier) - 1,
 			Line:  l.currentLine,
 		},
 		{
-			Type:  ConfigTokenTypeAssignment,
+			Type:  TokenTypeAssignment,
 			Value: runeToUTF8(candidate),
 			Start: loc,
 			Line:  l.currentLine,
@@ -455,14 +458,14 @@ func (l *ConfigLexer) newAssignment(candidate rune, loc int) ConfigTokens {
 
 		tokens = append(tokens,
 			valueToken,
-			&ConfigToken{
-				Type:  ConfigTokenTypeComment,
+			&Token{
+				Type:  TokenTypeComment,
 				Value: runeToUTF8('#'),
 				Start: commentStart,
 				Line:  l.currentLine,
 			},
-			&ConfigToken{
-				Type:  ConfigTokenTypeCommentValue,
+			&Token{
+				Type:  TokenTypeCommentValue,
 				Value: bytes.TrimSpace(commentTrimmed),
 				Start: commentStart + len(comment) - len(commentTrimmed) - 1,
 				Line:  l.currentLine,
@@ -474,8 +477,8 @@ func (l *ConfigLexer) newAssignment(candidate rune, loc int) ConfigTokens {
 	}
 
 	tokens = append(tokens,
-		&ConfigToken{
-			Type:  ConfigTokenTypeEndOfStatement,
+		&Token{
+			Type:  TokenTypeEndOfStatement,
 			Value: runeToUTF8('\n'),
 			Line:  l.currentLine,
 			Start: l.readCount,
@@ -486,30 +489,30 @@ func (l *ConfigLexer) newAssignment(candidate rune, loc int) ConfigTokens {
 	l.currentLine++
 
 	if err == io.EOF {
-		tokens = append(tokens, ConfigTokenEOF)
+		tokens = append(tokens, TokenEOF)
 	} else if err != nil {
-		tokens = append(tokens, ConfigTokenError(err))
+		tokens = append(tokens, TokenError(err))
 	}
 
 	return tokens
 }
 
-func (l *ConfigLexer) createValueToken(line []byte, loc int) *ConfigToken {
+func (l *Lexer) createValueToken(line []byte, loc int) *Token {
 	sQidx := bytes.IndexByte(line, '"')
 	lQidx := bytes.LastIndexByte(line, '"')
-	var valueToken ConfigToken
+	var valueToken Token
 	if sQidx == -1 && lQidx == -1 {
 		trimmedLine := bytes.TrimSpace(line)
-		valueToken = ConfigToken{
-			Type:  ConfigTokenTypeInt64,
+		valueToken = Token{
+			Type:  TokenTypeInt64,
 			Value: trimmedLine,
 			Start: loc + len(line) - len(trimmedLine),
 			Line:  l.currentLine,
 		}
 	} else {
 		trimmedLine := bytes.TrimSpace(line[sQidx+1 : lQidx])
-		valueToken = ConfigToken{
-			Type:  ConfigTokenTypeString,
+		valueToken = Token{
+			Type:  TokenTypeString,
 			Value: trimmedLine,
 			Start: loc + len(line) - len(trimmedLine) - 2,
 			Line:  l.currentLine,
@@ -518,20 +521,20 @@ func (l *ConfigLexer) createValueToken(line []byte, loc int) *ConfigToken {
 	return &valueToken
 }
 
-func (l *ConfigLexer) RuneToTokenType(r rune) ConfigTokenType {
+func (l *Lexer) RuneToTokenType(r rune) TokenType {
 	switch r {
 	case '{':
-		return ConfigTokenTypeStartOfSection
+		return TokenTypeStartOfSection
 	case '}':
-		return ConfigTokenTypeEndOfSection
+		return TokenTypeEndOfSection
 	case '=':
-		return ConfigTokenTypeAssignment
+		return TokenTypeAssignment
 	case '\n':
-		return ConfigTokenTypeEndOfStatement
+		return TokenTypeEndOfStatement
 	case '#':
-		return ConfigTokenTypeComment
+		return TokenTypeComment
 	default:
-		return configTokenTypeNotYetKnown
+		return TokenTypeNotYetKnown
 	}
 }
 
@@ -553,4 +556,10 @@ func runesToUTF8(rs []rune) []byte {
 	}
 
 	return bs
+}
+
+// generateLVMConfigEditComment generates a comment to be added to the configuration file
+// This comment is used to indicate that the field was edited by the client.
+func generateLVMConfigEditComment() string {
+	return fmt.Sprintf(`This field was edited by %s at %s`, util.ModuleID(), time.Now().Format(time.RFC3339))
 }
