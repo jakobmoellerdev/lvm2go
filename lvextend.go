@@ -84,11 +84,11 @@ func (opts *LVExtendOptions) ApplyToArgs(args Arguments) error {
 	}
 
 	if opts.PrefixedSize.SizePrefix == SizePrefixMinus {
-		return fmt.Errorf("size prefix must be positive")
+		return fmt.Errorf("size section must be positive")
 	} else if opts.PrefixedExtents.SizePrefix == SizePrefixMinus {
-		return fmt.Errorf("extents prefix must be positive")
+		return fmt.Errorf("extents section must be positive")
 	} else if opts.PoolMetadataPrefixedSize.SizePrefix == SizePrefixMinus {
-		return fmt.Errorf("pool metadata size prefix must be positive")
+		return fmt.Errorf("pool metadata size section must be positive")
 	}
 
 	if opts.PoolMetadataPrefixedSize.Val == 0 && opts.PrefixedSize.Val == 0 && opts.Extents.Val == 0 {

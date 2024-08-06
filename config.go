@@ -25,7 +25,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -134,7 +133,7 @@ func (c *client) ReadAndDecodeConfig(ctx context.Context, v any, opts ...ConfigO
 
 	processor, query, err := getStructProcessorAndQuery(v)
 	if err != nil {
-		return fmt.Errorf("failed to get struct processor and query for config decode: %v", err)
+		return fmt.Errorf("failed to get struct processor and query for config Decode: %v", err)
 	}
 
 	queryArgs := append(query, args.GetRaw()...)
@@ -148,7 +147,7 @@ func (c *client) WriteAndEncodeConfig(ctx context.Context, v any, writer io.Writ
 		return fmt.Errorf("failed to read lvm struct tag: %v", err)
 	}
 
-	fieldsByPrefix := map[string][]lvmStructTagFieldSpec{}
+	fieldsByPrefix := map[string][]LVMStructTagFieldMapping{}
 	for _, field := range fieldsForConfigQuery {
 		fieldsByPrefix[field.prefix] = append(fieldsByPrefix[field.prefix], field)
 	}
@@ -298,7 +297,7 @@ func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
 	// This is used to update the configuration file with the new values
 	type fieldRegex struct {
 		*regexp.Regexp
-		field *lvmStructTagFieldSpec
+		field *LVMStructTagFieldMapping
 	}
 
 	// build a list of regexes to match the fields in the configuration file
@@ -441,30 +440,7 @@ func getStructProcessorAndQuery(v any) (RawOutputProcessor, []string, error) {
 	}
 
 	return func(out io.Reader) error {
-		scanner := bufio.NewScanner(out)
-		for scanner.Scan() {
-			split := strings.Split(scanner.Text(), "=")
-			if len(split) != 2 {
-				return fmt.Errorf("unexpected line (no key value identification): %s", scanner.Text())
-			}
-			k, v := split[0], strings.Trim(split[1], "\"")
-
-			if field, ok := fieldsForConfigQuery[k]; ok {
-				if field.Kind() == reflect.String {
-					field.SetString(v)
-				} else if field.Kind() == reflect.Int64 {
-					if parsed, err := strconv.ParseInt(v, 10, 64); err != nil {
-						return fmt.Errorf("failed to parse int64 for field %s: %v", k, err)
-					} else {
-						field.SetInt(parsed)
-					}
-				} else {
-					return fmt.Errorf("unsupported field type %s", field.Kind())
-				}
-			}
-		}
-
-		return scanner.Err()
+		return newLexingConfigDecoderWithFieldMapping(out, fieldsForConfigQuery).Decode()
 	}, query, nil
 }
 

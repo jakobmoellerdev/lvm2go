@@ -5,13 +5,13 @@ import (
 	"reflect"
 )
 
-type lvmStructTagFieldSpec struct {
+type LVMStructTagFieldMapping struct {
 	prefix string
 	name   string
 	reflect.Value
 }
 
-func (f lvmStructTagFieldSpec) String() string {
+func (f LVMStructTagFieldMapping) String() string {
 	switch f.Kind() {
 	case reflect.Int64:
 		return fmt.Sprintf("%s = %d", f.name, f.Int())
@@ -20,7 +20,7 @@ func (f lvmStructTagFieldSpec) String() string {
 	}
 }
 
-func readLVMStructTag(v any) (map[string]lvmStructTagFieldSpec, error) {
+func readLVMStructTag(v any) (map[string]LVMStructTagFieldMapping, error) {
 	fields, typeAccessor, valueAccessor, err := accessStructOrPointerToStruct(v)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func readLVMStructTag(v any) (map[string]lvmStructTagFieldSpec, error) {
 		return tag.Get(LVMConfigStructTag), tag.Get(LVMConfigStructTag) == "-"
 	}
 
-	fieldSpecs := make(map[string]lvmStructTagFieldSpec)
+	fieldSpecs := make(map[string]LVMStructTagFieldMapping)
 	for i := range fields {
 		outerField := typeAccessor(i)
 		prefix, ignore := tagOrIgnore(outerField.Tag)
@@ -47,7 +47,7 @@ func readLVMStructTag(v any) (map[string]lvmStructTagFieldSpec, error) {
 			if ignore {
 				continue
 			}
-			fieldSpecs[name] = lvmStructTagFieldSpec{
+			fieldSpecs[name] = LVMStructTagFieldMapping{
 				prefix,
 				name,
 				valueAccessor(j),

@@ -9,12 +9,48 @@ import (
 	"unicode/utf8"
 )
 
+// ConfigLexer is an interface for tokenizing and working with lvm configuration files
+type ConfigLexer interface {
+	ConfigLexerReader
+	ConfigLexerWriter
+}
+
+// ConfigLexerReader is an interface for reading tokens from a configuration file
+// The lexer reads the configuration file and returns ConfigTokens that can be used to
+// decode the configuration file into a struct or do other operations.
+// Any returned Token is one of ConfigTokenType, for more details see the ConfigTokenType documentation.
 type ConfigLexerReader interface {
+	// Lex reads the configuration file and returns all tokens in the file or an error if one occurs
+	// The lexer will return an EOF token when the end of the file is reached.
+	// The lexer will return an Error token when an error occurs.
+	// Lex can be used to read the entire configuration file in one operation and to decouple reading from parsing.
 	Lex() (ConfigTokens, error)
+
+	// Next returns the next set of tokens in the configuration file that can be read in a single operation
+	// Note that using Next() will not fail out if an error occurs, it will return the ConfigTokenError in the tokens
+	// as it is considered part of the read operation.
+	// The lexer will return an EOF token when the end of the file is reached.
+	// The lexer will return an Error token when an error occurs.
+	// Next can be used to implement efficient parsers that only read the next token when needed.
 	Next() ConfigTokens
 }
 
-func NewConfigLexer(dataStream io.Reader) ConfigLexerReader {
+type ConfigLexerWriter interface {
+	// WriteBytes writes the tokens into a byte array
+	// The writer should be able to write the tokens in the same format as the original configuration file.
+	// If possible, indentation and comments should be preserved, however this is not a requirement.
+	// If no information on starting of tokens or line number is provided, the writer will write
+	// a config with a predefined format that corresponds to the example below:
+	//
+	// Example:
+	// # comment\n
+	// config {\n
+	// \tkey = value\n
+	// }\n
+	WriteBytes(tokens ConfigTokens) ([]byte, error)
+}
+
+func NewConfigLexer(dataStream io.Reader) ConfigLexer {
 	return &configLexer{
 		current:     ConfigTokenTypeSOF,
 		dataStream:  bufio.NewReaderSize(dataStream, 4096),
@@ -141,6 +177,14 @@ func (t ConfigTokens) String() string {
 	return builder.String()
 }
 
+func (t ConfigTokens) minimumSize() int {
+	size := 0
+	for _, token := range t {
+		size += len(token.Value)
+	}
+	return size
+}
+
 type ConfigToken struct {
 	Type        ConfigTokenType
 	Value       []byte
@@ -156,7 +200,7 @@ func (t ConfigToken) String() string {
 	if t.Err != nil {
 		builder.WriteString(t.Err.Error())
 	} else {
-		builder.Write(t.Value)
+		builder.WriteString(fmt.Sprintf("%q", t.Value))
 	}
 	return builder.String()
 }
@@ -408,6 +452,73 @@ func (l *configLexer) RuneToTokenType(r rune) ConfigTokenType {
 	default:
 		return configTokenTypeNotYetKnown
 	}
+}
+
+func (l *configLexer) WriteBytes(tokens ConfigTokens) ([]byte, error) {
+	// We can estimate a good buffer size by requesting 15% more than the minimum size for all values
+	// This way we are accommodating for the fact that we might need to add spaces or tabs for indentation.
+	expectedSize := int(float32(tokens.minimumSize()) * 1.15)
+	buf := bytes.NewBuffer(make([]byte, 0, expectedSize))
+
+	// writeTabOrSpaceIfInSection writes a tab if the line is in a section and has not been indented yet
+	// otherwise it writes a space
+	// we can use this for correct indentation of the configuration file
+	inSection := false
+	linesIndented := map[int]struct{}{}
+	writeTabOrSpaceIfInSection := func(line int) {
+		if inSection {
+			if _, ok := linesIndented[line]; !ok {
+				buf.WriteRune('\t')
+				linesIndented[line] = struct{}{}
+			} else {
+				buf.WriteRune(' ')
+			}
+		}
+	}
+
+	for _, token := range tokens {
+		switch token.Type {
+		case ConfigTokenTypeComment:
+			writeTabOrSpaceIfInSection(token.Line)
+			buf.Write(token.Value)
+			buf.WriteRune(' ') // readability: Add a space after the comment identifier
+		case ConfigTokenTypeCommentValue:
+			buf.Write(token.Value)
+		case ConfigTokenTypeEndOfStatement:
+			buf.Write(token.Value)
+		case ConfigTokenTypeSection:
+			buf.Write(token.Value)
+			buf.WriteRune(' ') // readability: Add a space after the section identifier
+		case ConfigTokenTypeSectionStart:
+			buf.Write(token.Value)
+			inSection = true
+		case ConfigTokenTypeSectionEnd:
+			buf.Write(token.Value)
+			inSection = false
+		case ConfigTokenTypeString:
+			buf.WriteRune('"')
+			buf.Write(token.Value)
+			buf.WriteRune('"')
+		case ConfigTokenTypeIdentifier:
+			writeTabOrSpaceIfInSection(token.Line)
+			buf.Write(token.Value)
+			buf.WriteRune(' ') // readability: Add a space after the identifier
+		case ConfigTokenTypeAssignment:
+			buf.Write(token.Value)
+			buf.WriteRune(' ') // readability: Add a space after the assignment
+		case ConfigTokenTypeInt64:
+			buf.Write(token.Value)
+		case ConfigTokenTypeSOF:
+			continue
+		case ConfigTokenTypeEOF:
+			break
+		case ConfigTokenTypeError:
+			return nil, token.Err
+		case configTokenTypeNotYetKnown:
+			return nil, fmt.Errorf("unexpected token type %v", token.Type)
+		}
+	}
+	return buf.Bytes(), nil
 }
 
 func runeToUTF8(r rune) []byte {
