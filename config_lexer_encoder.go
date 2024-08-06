@@ -20,6 +20,10 @@ func NewLexingConfigEncoder(writer io.Writer) LexingConfigEncoder {
 }
 
 func (c *configLexEncoder) Encode(v any) error {
+	switch v := v.(type) {
+	case ConfigTokens:
+		return c.writeTokens(v)
+	}
 	if isUnstructuredMap(v) {
 		return c.EncodeUnstructured(v)
 	}
@@ -27,12 +31,17 @@ func (c *configLexEncoder) Encode(v any) error {
 }
 
 func (c *configLexEncoder) EncodeStructured(v any) error {
-	fieldSpecs, err := readLVMStructTag(v)
+	fieldSpecs, err := DecodeLVMStructTagFieldMappings(v)
 	if err != nil {
 		return err
 	}
+	tokens := StructMappingsToConfigTokens(fieldSpecs)
+	return c.writeTokens(tokens)
+}
+
+func StructMappingsToConfigTokens(mappings LVMStructTagFieldMappings) ConfigTokens {
 	fieldSpecsKeyed := make(map[string]map[string]LVMStructTagFieldMapping)
-	for _, fieldSpec := range fieldSpecs {
+	for _, fieldSpec := range mappings {
 		keyed, ok := fieldSpecsKeyed[fieldSpec.prefix]
 		if !ok {
 			fieldSpecsKeyed[fieldSpec.prefix] = make(map[string]LVMStructTagFieldMapping)
@@ -42,17 +51,17 @@ func (c *configLexEncoder) EncodeStructured(v any) error {
 	}
 
 	line := 1
-	tokens := make(ConfigTokens, 0, len(fieldSpecs))
+	tokens := make(ConfigTokens, 0, len(mappings))
 	for section, fields := range fieldSpecsKeyed {
-		tokens = append(tokens, ConfigToken{
+		tokens = append(tokens, &ConfigToken{
 			Type:  ConfigTokenTypeSection,
 			Value: []byte(section),
 			Line:  line,
-		}, ConfigToken{
-			Type:  ConfigTokenTypeSectionStart,
+		}, &ConfigToken{
+			Type:  ConfigTokenTypeStartOfSection,
 			Value: []byte{'{'},
 			Line:  line,
-		}, ConfigToken{
+		}, &ConfigToken{
 			Type:  ConfigTokenTypeEndOfStatement,
 			Value: []byte{'\n'},
 			Line:  line,
@@ -60,11 +69,11 @@ func (c *configLexEncoder) EncodeStructured(v any) error {
 		line++
 
 		for _, fieldSpec := range fields {
-			tokens = append(tokens, ConfigToken{
+			tokens = append(tokens, &ConfigToken{
 				Type:  ConfigTokenTypeIdentifier,
 				Value: []byte(fieldSpec.name),
 				Line:  line,
-			}, ConfigToken{
+			}, &ConfigToken{
 				Type:  ConfigTokenTypeAssignment,
 				Value: []byte{'='},
 				Line:  line,
@@ -72,20 +81,20 @@ func (c *configLexEncoder) EncodeStructured(v any) error {
 
 			switch fieldSpec.Kind() {
 			case reflect.Int64:
-				tokens = append(tokens, ConfigToken{
+				tokens = append(tokens, &ConfigToken{
 					Type:  ConfigTokenTypeInt64,
 					Value: []byte(fmt.Sprintf("%d", fieldSpec.Value.Int())),
 					Line:  line,
 				})
 			default:
-				tokens = append(tokens, ConfigToken{
+				tokens = append(tokens, &ConfigToken{
 					Type:  ConfigTokenTypeString,
 					Value: []byte(fieldSpec.Value.String()),
 					Line:  line,
 				})
 			}
 
-			tokens = append(tokens, ConfigToken{
+			tokens = append(tokens, &ConfigToken{
 				Type:  ConfigTokenTypeEndOfStatement,
 				Value: []byte{'\n'},
 				Line:  line,
@@ -93,11 +102,11 @@ func (c *configLexEncoder) EncodeStructured(v any) error {
 			line++
 		}
 
-		tokens = append(tokens, ConfigToken{
-			Type:  ConfigTokenTypeSectionEnd,
+		tokens = append(tokens, &ConfigToken{
+			Type:  ConfigTokenTypeEndOfSection,
 			Value: []byte{'}'},
 			Line:  line,
-		}, ConfigToken{
+		}, &ConfigToken{
 			Type:  ConfigTokenTypeEndOfStatement,
 			Value: []byte{'\n'},
 			Line:  line,
@@ -105,7 +114,7 @@ func (c *configLexEncoder) EncodeStructured(v any) error {
 		line++
 	}
 
-	return c.writeTokens(tokens)
+	return tokens
 }
 
 func (c *configLexEncoder) EncodeUnstructured(v any) error {
@@ -151,15 +160,15 @@ func (c *configLexEncoder) EncodeUnstructured(v any) error {
 
 	line := 1
 	for _, section := range sectionKeys {
-		tokens = append(tokens, ConfigToken{
+		tokens = append(tokens, &ConfigToken{
 			Type:  ConfigTokenTypeSection,
 			Value: []byte(section),
 			Line:  line,
-		}, ConfigToken{
-			Type:  ConfigTokenTypeSectionStart,
+		}, &ConfigToken{
+			Type:  ConfigTokenTypeStartOfSection,
 			Value: []byte{'{'},
 			Line:  line,
-		}, ConfigToken{
+		}, &ConfigToken{
 			Type:  ConfigTokenTypeEndOfStatement,
 			Value: []byte{'\n'},
 			Line:  line,
@@ -168,11 +177,11 @@ func (c *configLexEncoder) EncodeUnstructured(v any) error {
 		for _, key := range fieldKeys {
 			value := mbySection[section][key]
 
-			tokens = append(tokens, ConfigToken{
+			tokens = append(tokens, &ConfigToken{
 				Type:  ConfigTokenTypeIdentifier,
 				Value: []byte(key),
 				Line:  line,
-			}, ConfigToken{
+			}, &ConfigToken{
 				Type:  ConfigTokenTypeAssignment,
 				Value: []byte{'='},
 				Line:  line,
@@ -180,20 +189,20 @@ func (c *configLexEncoder) EncodeUnstructured(v any) error {
 
 			switch value := value.(type) {
 			case int64:
-				tokens = append(tokens, ConfigToken{
+				tokens = append(tokens, &ConfigToken{
 					Type:  ConfigTokenTypeInt64,
 					Value: []byte(fmt.Sprintf("%d", value)),
 					Line:  line,
 				})
 			default:
-				tokens = append(tokens, ConfigToken{
+				tokens = append(tokens, &ConfigToken{
 					Type:  ConfigTokenTypeString,
 					Value: []byte(fmt.Sprintf("%v", value)),
 					Line:  line,
 				})
 			}
 
-			tokens = append(tokens, ConfigToken{
+			tokens = append(tokens, &ConfigToken{
 				Type:  ConfigTokenTypeEndOfStatement,
 				Value: []byte{'\n'},
 				Line:  line,
@@ -201,11 +210,11 @@ func (c *configLexEncoder) EncodeUnstructured(v any) error {
 			line++
 		}
 
-		tokens = append(tokens, ConfigToken{
-			Type:  ConfigTokenTypeSectionEnd,
+		tokens = append(tokens, &ConfigToken{
+			Type:  ConfigTokenTypeEndOfSection,
 			Value: []byte{'}'},
 			Line:  line,
-		}, ConfigToken{
+		}, &ConfigToken{
 			Type:  ConfigTokenTypeEndOfStatement,
 			Value: []byte{'\n'},
 			Line:  line,
@@ -265,10 +274,10 @@ func ConfigTokensToBytes(tokens ConfigTokens) ([]byte, error) {
 		case ConfigTokenTypeSection:
 			buf.Write(token.Value)
 			buf.WriteRune(' ') // readability: Add a space after the section identifier
-		case ConfigTokenTypeSectionStart:
+		case ConfigTokenTypeStartOfSection:
 			buf.Write(token.Value)
 			inSection = true
-		case ConfigTokenTypeSectionEnd:
+		case ConfigTokenTypeEndOfSection:
 			buf.Write(token.Value)
 			inSection = false
 		case ConfigTokenTypeString:

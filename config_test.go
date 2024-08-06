@@ -291,6 +291,31 @@ func TestProfile(t *testing.T) {
 //go:embed testdata/lvm.conf
 var testFile []byte
 
+func BenchmarkDecode(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		benchmarkDecode(b)
+	}
+}
+
+func benchmarkDecode(b *testing.B) {
+	for range b.N {
+		b.StopTimer()
+		decoder := NewLexingConfigDecoder(bytes.NewReader(testFile))
+		b.StartTimer()
+		cfg := struct {
+			Config struct {
+				ProfileDir string `lvm:"profile_dir"`
+			} `lvm:"config"`
+		}{}
+		if err := decoder.Decode(&cfg); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.Config.ProfileDir != "/my/custom/profile_dir" {
+			b.Fatalf("unexpected value: %s", cfg.Config.ProfileDir)
+		}
+	}
+}
+
 func TestUpdateGlobalConfig(t *testing.T) {
 	LVMGlobalConfiguration = filepath.Join(t.TempDir(), "lvm.conf")
 	if err := os.WriteFile(LVMGlobalConfiguration, testFile, 0600); err != nil {
@@ -313,8 +338,6 @@ func TestUpdateGlobalConfig(t *testing.T) {
 		} `lvm:"config"`
 	}{}
 
-	expectedPreamble := "# Proceed carefully when editing as it can have unintended consequences with code relying on this field.\n\t"
-
 	cfg.Config.ProfileDir = "mynewprofiledir"
 
 	if err := clnt.UpdateGlobalConfig(context.Background(), &cfg); err != nil {
@@ -322,17 +345,16 @@ func TestUpdateGlobalConfig(t *testing.T) {
 	}
 
 	containsFieldNewlySet := bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
-		"%sabort_on_errors = %d\n",
-		expectedPreamble,
+		"abort_on_errors = %d\n",
 		cfg.Config.AbortOnErrors,
 	)))
 	if !containsFieldNewlySet {
+		println(control().String())
 		t.Fatalf("expected field to be set, but it was not")
 	}
 
 	containsModifiedField := bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
-		"%sprofile_dir = %q\n",
-		expectedPreamble,
+		"profile_dir = %q\n",
 		cfg.Config.ProfileDir,
 	)))
 
@@ -347,8 +369,7 @@ func TestUpdateGlobalConfig(t *testing.T) {
 	}
 
 	if containsModifiedField = bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
-		"%sprofile_dir = %q\n",
-		expectedPreamble,
+		"profile_dir = %q\n",
 		"mynewprofiledir2",
 	))); !containsModifiedField {
 		t.Fatalf("expected field to be modified, but it was not")
@@ -361,8 +382,7 @@ func TestUpdateGlobalConfig(t *testing.T) {
 	}
 
 	if containsModifiedField = bytes.Contains(control().Bytes(), []byte(fmt.Sprintf(
-		"%sprofile_dir = %q\n",
-		expectedPreamble,
+		"profile_dir = %q\n",
 		"mynewprofiledir3",
 	))); !containsModifiedField {
 		t.Fatalf("expected field to be modified, but it was not")

@@ -120,6 +120,7 @@ func TestNewLexingConfigEncoder(t *testing.T) {
 	some_field = 1
 }
 ` {
+			// TODO Fix me sometimes failing
 			t.Fatalf("unexpected output:\n%s", testBuffer.String())
 		}
 	})

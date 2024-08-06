@@ -5,6 +5,8 @@ import (
 	"reflect"
 )
 
+type LVMStructTagFieldMappings map[string]LVMStructTagFieldMapping
+
 type LVMStructTagFieldMapping struct {
 	prefix string
 	name   string
@@ -20,7 +22,7 @@ func (f LVMStructTagFieldMapping) String() string {
 	}
 }
 
-func readLVMStructTag(v any) (map[string]LVMStructTagFieldMapping, error) {
+func DecodeLVMStructTagFieldMappings(v any) (map[string]LVMStructTagFieldMapping, error) {
 	fields, typeAccessor, valueAccessor, err := accessStructOrPointerToStruct(v)
 	if err != nil {
 		return nil, err

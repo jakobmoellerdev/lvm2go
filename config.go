@@ -25,7 +25,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -141,42 +140,8 @@ func (c *client) ReadAndDecodeConfig(ctx context.Context, v any, opts ...ConfigO
 	return c.RunLVMRaw(ctx, processor, append([]string{"config"}, queryArgs...)...)
 }
 
-func (c *client) WriteAndEncodeConfig(ctx context.Context, v any, writer io.Writer) error {
-
-	fieldsForConfigQuery, err := readLVMStructTag(v)
-	if err != nil {
-		return fmt.Errorf("failed to read lvm struct tag: %v", err)
-	}
-
-	fieldsByPrefix := map[string][]LVMStructTagFieldMapping{}
-	for _, field := range fieldsForConfigQuery {
-		fieldsByPrefix[field.prefix] = append(fieldsByPrefix[field.prefix], field)
-	}
-
-	if err = copyWithTimeout(ctx, writer, strings.NewReader(generateLVMConfigCreateComment()), 10*time.Second); err != nil {
-		return fmt.Errorf("failed to write config block: %v", err)
-	}
-
-	for prefix, field := range fieldsByPrefix {
-		buf := bytes.Buffer{}
-		if _, err = buf.WriteString(fmt.Sprintf("%s {\n", prefix)); err != nil {
-			return fmt.Errorf("failed to block start %s: %v", prefix, err)
-		}
-		for _, f := range field {
-			if _, err = buf.WriteString(fmt.Sprintf("\t%s\n", f)); err != nil {
-				return fmt.Errorf("failed to write field %s: %v", f.name, err)
-			}
-		}
-		if _, err = buf.WriteString("}\n"); err != nil {
-			return fmt.Errorf("failed to block end %s: %v", prefix, err)
-		}
-
-		if err = copyWithTimeout(ctx, writer, &buf, 10*time.Second); err != nil {
-			return fmt.Errorf("failed to write config block: %v", err)
-		}
-	}
-
-	return nil
+func (c *client) WriteAndEncodeConfig(_ context.Context, v any, writer io.Writer) error {
+	return NewLexingConfigEncoder(writer).Encode(v)
 }
 
 func (c *client) GetProfileDirectory(ctx context.Context) (string, error) {
@@ -289,96 +254,58 @@ func (c *client) UpdateConfigFromPath(ctx context.Context, v any, path string) e
 // If the resulting configuration is smaller than the original, the difference is padded with empty bytes.
 // The configuration file is written back to the start of original configuration file.
 func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
-	fieldsForConfigQuery, err := readLVMStructTag(v)
+	structMappings, err := DecodeLVMStructTagFieldMappings(v)
 	if err != nil {
 		return fmt.Errorf("failed to read lvm struct tag: %v", err)
 	}
+	tokensToModify := StructMappingsToConfigTokens(structMappings)
 
-	// fieldRegex is a struct that holds a regexp and the field it is associated with
-	// This is used to update the configuration file with the new values
-	type fieldRegex struct {
-		*regexp.Regexp
-		field *LVMStructTagFieldMapping
-	}
-
-	// build a list of regexes to match the fields in the configuration file
-	fieldRegexes := make([]fieldRegex, 0, len(fieldsForConfigQuery))
-	for _, field := range fieldsForConfigQuery {
-		// The pattern is a regex that matches the field name and its value if uncommented
-		// It also matches the comment that indicates the field was edited by the client.
-		// Valid:
-		//  field = value
-		//  field = "value"
-		// Invalid:
-		//  # field = value
-		//  # field = "value"
-		// It incorporates various tabbing and spacing configurations as well
-		pattern := fmt.Sprintf(`(?m)((\t# .*?\n)*|)^\s%s\s*=\s*(\".*?\"|\d+)?$`, field.name)
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return fmt.Errorf("failed to compile regexp: %v", err)
-		}
-		fieldRegexes = append(fieldRegexes, fieldRegex{Regexp: re, field: &field})
-	}
-
-	// Read the entirety of the config, we will use this as the base for the replacement
-	raw, err := io.ReadAll(rw)
+	data, err := io.ReadAll(rw)
 	if err != nil {
 		return fmt.Errorf("failed to read configuration: %v", err)
 	}
-	// keep track of the offset so we can seek back to the start of the configuration
-	// after we have finished writing the new configuration.
-	// Since our new configuration will be the same size or larger than the original,
-	offset := len(raw)
+	reader := bytes.NewReader(data)
 
-	comment := generateLVMConfigEditComment()
-	for _, check := range fieldRegexes {
-		// Check if the field is present in the configuration
-		if idx := check.FindIndex(raw); idx == nil {
-			// If the field is not found, add it to the section with a comment to indicate it was added
-			// The section pattern is a regex that matches the section name and the fields within it
-			// Examples:
-			// section {
-			// \tfield = value
-			// }
-			sectionPattern := fmt.Sprintf(`(?sm)(%s\s*\{.*?)(^\s*\})`, check.field.prefix)
-			sectionRe := regexp.MustCompile(sectionPattern)
-			raw = sectionRe.ReplaceAllFunc(raw, func(section []byte) []byte {
-				return sectionRe.ReplaceAll(section, []byte(fmt.Sprintf("${1}%s\t%s\n$2", comment, check.field)))
-			})
-		} else {
-			// Update the field if found and add a comment to indicate it was edited
-			raw = check.ReplaceAll(raw, []byte(fmt.Sprintf("%s\t%s", comment, check.field)))
-		}
+	tokensFromFile, err := NewBufferedConfigLexer(reader).Lex()
+	if err != nil {
+		return fmt.Errorf("failed to read configuration: %v", err)
 	}
 
-	if diff := len(raw) - offset; diff < 0 {
+	// First merge all assignments from the new struct into the existing configuration
+	newTokens := assignmentsWithSections(tokensFromFile).
+		overrideWith(assignmentsWithSections(tokensToModify))
+
+	// Then append any new assignments at the end of the sections
+	tokens := appendAssignmentsAtEndOfSections(tokensFromFile, newTokens)
+
+	// Write the new configuration to a buffer
+	buf := bytes.NewBuffer(make([]byte, 0, len(data)))
+	if err := NewLexingConfigEncoder(buf).Encode(tokens); err != nil {
+		return fmt.Errorf("failed to encode new configuration: %v", err)
+	}
+
+	if diff := buf.Cap() - len(data); diff < 0 {
 		// If the old configuration is smaller than the new configuration, we need to append the difference
 		// with empty bytes to ensure we do not have leftover data from the old configuration
-		raw = append(raw, make([]byte, -diff)...)
+		buf.Write(make([]byte, -diff))
 	}
-
 	// We want to write from the start, so seek back to the start of the configuration
-	if _, err = rw.Seek(int64(-offset), io.SeekCurrent); err != nil {
+	if _, err = rw.Seek(int64(-len(data)), io.SeekCurrent); err != nil {
 		return fmt.Errorf("failed to seek to start of configuration: %v", err)
 	}
 
 	// Write the new configuration based on the old configuration with the new fields
-	return copyWithTimeout(ctx, rw, bytes.NewReader(raw), 10*time.Second)
+	return copyWithTimeout(ctx, rw, buf, 10*time.Second)
 }
 
 // generateLVMConfigEditComment generates a comment to be added to the configuration file
 // This comment is used to indicate that the field was edited by the client.
 func generateLVMConfigEditComment() string {
-	return fmt.Sprintf(`	# This field was edited by %s at %s
-	# Proceed carefully when editing as it can have unintended consequences with code relying on this field.
-`, ModuleID(), time.Now().Format(time.RFC3339))
+	return fmt.Sprintf(`This field was edited by %s at %s`, ModuleID(), time.Now().Format(time.RFC3339))
 }
 
 func generateLVMConfigCreateComment() string {
-	return fmt.Sprintf(`# configuration created by %s at %s
-	# Proceed carefully when editing as it can have unintended consequences with code relying on this field.
-`, ModuleID(), time.Now().Format(time.RFC3339))
+	return fmt.Sprintf(`configuration created by %s at %s`, ModuleID(), time.Now().Format(time.RFC3339))
 }
 
 // GetFromRawConfig retrieves a value from a RawConfig by key and attempts to cast it to the type of T.
@@ -430,7 +357,7 @@ func (opts *ConfigOptions) ApplyToArgs(args Arguments) error {
 }
 
 func getStructProcessorAndQuery(v any) (RawOutputProcessor, []string, error) {
-	fieldsForConfigQuery, err := readLVMStructTag(v)
+	fieldsForConfigQuery, err := DecodeLVMStructTagFieldMappings(v)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read lvm struct tag: %v", err)
 	}

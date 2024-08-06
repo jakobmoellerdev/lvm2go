@@ -71,7 +71,7 @@ func (d *configLexDecoder) DecodeUnstructured(v any) error {
 			section = string(node.Value)
 			continue
 		}
-		if node.Type == ConfigTokenTypeSectionEnd {
+		if node.Type == ConfigTokenTypeEndOfSection {
 			section = ""
 			continue
 		}
@@ -114,7 +114,7 @@ func (d *configLexDecoder) DecodeUnstructured(v any) error {
 }
 
 func (d *configLexDecoder) DecodeStructured(v any) error {
-	fieldSpecs, err := readLVMStructTag(v)
+	fieldSpecs, err := DecodeLVMStructTagFieldMappings(v)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (d *structuredConfigLexDecoder) Decode() error {
 			section = string(node.Value)
 			continue
 		}
-		if node.Type == ConfigTokenTypeSectionEnd {
+		if node.Type == ConfigTokenTypeEndOfSection {
 			section = ""
 			continue
 		}

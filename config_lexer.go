@@ -58,15 +58,15 @@ const (
 	// }
 	ConfigTokenTypeSection ConfigTokenType = iota
 
-	// ConfigTokenTypeSectionStart represents the start of a section
+	// ConfigTokenTypeStartOfSection represents the start of a section
 	// Example:
 	// config { ← This is a section start token "{"
-	ConfigTokenTypeSectionStart ConfigTokenType = iota
+	ConfigTokenTypeStartOfSection ConfigTokenType = iota
 
-	// ConfigTokenTypeSectionEnd represents the end of a section
+	// ConfigTokenTypeEndOfSection represents the end of a section
 	// Example:
 	// config { ← This is a section end token "}"
-	ConfigTokenTypeSectionEnd ConfigTokenType = iota
+	ConfigTokenTypeEndOfSection ConfigTokenType = iota
 
 	// ConfigTokenTypeString represents a string
 	// Example:
@@ -110,9 +110,9 @@ func (t ConfigTokenType) String() string {
 		return "EndOfStatement"
 	case ConfigTokenTypeSection:
 		return "Section"
-	case ConfigTokenTypeSectionStart:
+	case ConfigTokenTypeStartOfSection:
 		return "SectionStart"
-	case ConfigTokenTypeSectionEnd:
+	case ConfigTokenTypeEndOfSection:
 		return "SectionEnd"
 	case ConfigTokenTypeString:
 		return "String"
@@ -145,7 +145,7 @@ type ConfigLexer struct {
 	currentLine int
 }
 
-type ConfigTokens []ConfigToken
+type ConfigTokens []*ConfigToken
 
 func (t ConfigTokens) String() string {
 	builder := strings.Builder{}
@@ -162,6 +162,108 @@ func (t ConfigTokens) minimumSize() int {
 		size += len(token.Value)
 	}
 	return size
+}
+
+type configTokensByIdentifier map[string]ConfigTokens
+
+func assignmentsWithSections(t ConfigTokens) configTokensByIdentifier {
+	sectionIndex := -1
+	assignments := make(map[string]ConfigTokens)
+	for i, token := range t {
+		if token.Type == ConfigTokenTypeSection {
+			sectionIndex = i
+			continue
+		}
+
+		if token.Type != ConfigTokenTypeAssignment {
+			continue
+		}
+
+		assignments[string(t[i-1].Value)] = ConfigTokens{
+			t[sectionIndex],
+			t[i-1],
+			token,
+			t[i+1],
+		}
+	}
+	return assignments
+}
+
+func (a configTokensByIdentifier) overrideWith(other configTokensByIdentifier) (notFound ConfigTokens) {
+	for key, value := range other {
+		v, ok := a[key]
+		if !ok {
+			notFound = append(notFound, value...)
+		} else {
+			v[3].Value = value[3].Value
+		}
+	}
+	return
+}
+
+func appendAssignmentsAtEndOfSections(into ConfigTokens, toAdd ConfigTokens) ConfigTokens {
+	section := ""
+	tokens := ConfigTokens{}
+	for i, token := range into {
+		tokens = append(tokens, token)
+		if token.Type == ConfigTokenTypeSection {
+			section = string(token.Value)
+			continue
+		}
+		if token.Type == ConfigTokenTypeEndOfSection {
+			candidates := ConfigTokens{}
+			for j, token := range toAdd {
+				if token.Type != ConfigTokenTypeAssignment {
+					continue
+				}
+				inSection := section != ""
+				isID := toAdd[j-1].Type == ConfigTokenTypeIdentifier
+				isSection := toAdd[j-2].Type == ConfigTokenTypeSection
+				if inSection && isID && isSection && section == string(toAdd[j-2].Value) {
+					candidates = append(candidates,
+						&ConfigToken{
+							Type:  ConfigTokenTypeComment,
+							Value: runeToUTF8('#'),
+						},
+						&ConfigToken{
+							Type:  ConfigTokenTypeCommentValue,
+							Value: []byte(generateLVMConfigEditComment()),
+						},
+						&ConfigToken{
+							Type:  ConfigTokenTypeEndOfStatement,
+							Value: runeToUTF8('\n'),
+						},
+						toAdd[j-1], token, toAdd[j+1],
+						&ConfigToken{
+							Type:  ConfigTokenTypeEndOfStatement,
+							Value: runeToUTF8('\n'),
+						})
+				}
+			}
+
+			tokens = append(tokens[:i], append(candidates, tokens[i:]...)...)
+		}
+	}
+	return tokens
+}
+
+func (t ConfigTokens) InSection(section string) ConfigTokens {
+	tokensInSection := ConfigTokens{}
+	for _, token := range t {
+		if token.Type == ConfigTokenTypeSection {
+			if inSection := string(token.Value) == section; inSection {
+				continue
+			}
+		}
+		if token.Type == ConfigTokenTypeStartOfSection {
+			continue
+		}
+		if token.Type == ConfigTokenTypeEndOfSection {
+			break
+		}
+		tokensInSection = append(tokensInSection, token)
+	}
+	return tokensInSection
 }
 
 type ConfigToken struct {
@@ -184,10 +286,10 @@ func (t ConfigToken) String() string {
 	return builder.String()
 }
 
-var ConfigTokenEOF = ConfigToken{Type: ConfigTokenTypeEOF, Start: -1, Line: -1}
+var ConfigTokenEOF = &ConfigToken{Type: ConfigTokenTypeEOF, Start: -1, Line: -1}
 
-func ConfigTokenError(err error) ConfigToken {
-	return ConfigToken{Type: ConfigTokenTypeError, Err: err, Start: -1, Line: -1}
+func ConfigTokenError(err error) *ConfigToken {
+	return &ConfigToken{Type: ConfigTokenTypeError, Err: err, Start: -1, Line: -1}
 }
 
 func (l *ConfigLexer) Lex() (ConfigTokens, error) {
@@ -244,18 +346,18 @@ func (l *ConfigLexer) Next() ConfigTokens {
 
 		switch tokenType {
 		case ConfigTokenTypeComment:
-			tokens = l.handleComment(candidate, loc)
-		case ConfigTokenTypeSectionEnd:
-			tokens = append(tokens, ConfigToken{
-				Type:  ConfigTokenTypeSectionEnd,
+			tokens = l.newComment(candidate, loc)
+		case ConfigTokenTypeEndOfSection:
+			tokens = append(tokens, &ConfigToken{
+				Type:  ConfigTokenTypeEndOfSection,
 				Value: runeToUTF8(candidate),
 				Start: l.readCount,
 				Line:  l.currentLine,
 			})
-		case ConfigTokenTypeSectionStart:
-			tokens = l.handleSectionStart(candidate, loc)
+		case ConfigTokenTypeStartOfSection:
+			tokens = l.newSectionStart(candidate, loc)
 		case ConfigTokenTypeAssignment:
-			tokens = l.handleAssignment(candidate, loc)
+			tokens = l.newAssignment(candidate, loc)
 		default:
 			return ConfigTokens{ConfigTokenError(fmt.Errorf("unexpected token type %v", tokenType))}
 		}
@@ -264,7 +366,7 @@ func (l *ConfigLexer) Next() ConfigTokens {
 	}
 }
 
-func (l *ConfigLexer) handleComment(candidate rune, loc int) ConfigTokens {
+func (l *ConfigLexer) newComment(candidate rune, loc int) ConfigTokens {
 	comment, err := l.dataStream.ReadBytes('\n')
 	l.readCount += len(comment)
 	trimmedComment := bytes.TrimSpace(comment)
@@ -301,7 +403,7 @@ func (l *ConfigLexer) handleComment(candidate rune, loc int) ConfigTokens {
 	return tokens
 }
 
-func (l *ConfigLexer) handleSectionStart(candidate rune, loc int) ConfigTokens {
+func (l *ConfigLexer) newSectionStart(candidate rune, loc int) ConfigTokens {
 	section := l.lineBuffer.Bytes()
 	sectionTrimmed := bytes.TrimSpace(section)
 
@@ -313,7 +415,7 @@ func (l *ConfigLexer) handleSectionStart(candidate rune, loc int) ConfigTokens {
 			Line:  l.currentLine,
 		},
 		{
-			Type:  ConfigTokenTypeSectionStart,
+			Type:  ConfigTokenTypeStartOfSection,
 			Value: runeToUTF8(candidate),
 			Start: loc,
 			Line:  l.currentLine,
@@ -323,7 +425,7 @@ func (l *ConfigLexer) handleSectionStart(candidate rune, loc int) ConfigTokens {
 	return tokens
 }
 
-func (l *ConfigLexer) handleAssignment(candidate rune, loc int) ConfigTokens {
+func (l *ConfigLexer) newAssignment(candidate rune, loc int) ConfigTokens {
 	identifier := bytes.TrimSpace(l.lineBuffer.Bytes())
 	tokens := ConfigTokens{
 		{
@@ -353,13 +455,13 @@ func (l *ConfigLexer) handleAssignment(candidate rune, loc int) ConfigTokens {
 
 		tokens = append(tokens,
 			valueToken,
-			ConfigToken{
+			&ConfigToken{
 				Type:  ConfigTokenTypeComment,
 				Value: runeToUTF8('#'),
 				Start: commentStart,
 				Line:  l.currentLine,
 			},
-			ConfigToken{
+			&ConfigToken{
 				Type:  ConfigTokenTypeCommentValue,
 				Value: bytes.TrimSpace(commentTrimmed),
 				Start: commentStart + len(comment) - len(commentTrimmed) - 1,
@@ -372,7 +474,7 @@ func (l *ConfigLexer) handleAssignment(candidate rune, loc int) ConfigTokens {
 	}
 
 	tokens = append(tokens,
-		ConfigToken{
+		&ConfigToken{
 			Type:  ConfigTokenTypeEndOfStatement,
 			Value: runeToUTF8('\n'),
 			Line:  l.currentLine,
@@ -392,7 +494,7 @@ func (l *ConfigLexer) handleAssignment(candidate rune, loc int) ConfigTokens {
 	return tokens
 }
 
-func (l *ConfigLexer) createValueToken(line []byte, loc int) ConfigToken {
+func (l *ConfigLexer) createValueToken(line []byte, loc int) *ConfigToken {
 	sQidx := bytes.IndexByte(line, '"')
 	lQidx := bytes.LastIndexByte(line, '"')
 	var valueToken ConfigToken
@@ -413,15 +515,15 @@ func (l *ConfigLexer) createValueToken(line []byte, loc int) ConfigToken {
 			Line:  l.currentLine,
 		}
 	}
-	return valueToken
+	return &valueToken
 }
 
 func (l *ConfigLexer) RuneToTokenType(r rune) ConfigTokenType {
 	switch r {
 	case '{':
-		return ConfigTokenTypeSectionStart
+		return ConfigTokenTypeStartOfSection
 	case '}':
-		return ConfigTokenTypeSectionEnd
+		return ConfigTokenTypeEndOfSection
 	case '=':
 		return ConfigTokenTypeAssignment
 	case '\n':
