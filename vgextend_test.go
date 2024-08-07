@@ -62,8 +62,8 @@ func TestVGExtend(t *testing.T) {
 	}
 
 	if err := clnt.VGReduce(ctx, infra.volumeGroup.Name, addedDevices.PhysicalVolumeNames()); err != nil {
-		if IsLoopDeviceNoPVID(err) {
-			t.Log("vgreduce on loop devices lead to no PVID error, this is expected from time to time and can be ignored")
+		if IsSkippableErrorForCleanup(err) {
+			t.Logf("vgreduce on loop devices failed due to skippable error, ignoring: %s", err)
 		} else {
 			t.Fatal(err)
 		}

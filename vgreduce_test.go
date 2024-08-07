@@ -175,6 +175,8 @@ func TestVGReduceByMove(t *testing.T) {
 		if IsVGImmutableDueToMissingPVs(err) {
 			success = true
 			break
+		} else {
+			t.Logf("retrying impossible vgchange due to error %v", err)
 		}
 	}
 	if !success {
