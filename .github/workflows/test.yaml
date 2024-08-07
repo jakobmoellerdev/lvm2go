@@ -9,6 +9,12 @@ on:
       - "**/*.md"
     branches:
       - "main"
+  workflow_dispatch:
+    inputs:
+      go-test-count:
+        description: 'Test Count'
+        required: true
+        default: 1
 
 jobs:
   unit-tests:
@@ -27,7 +33,7 @@ jobs:
       - name: Display Go version
         run: go version
       - name: Run tests
-        run: sudo go test ./... -test.count=10
+        run: sudo go test ./... -test.count=${{ github.event.inputs.go-test-count }}
       - name: Run simple example
         run: sudo go run examples/simple/main.go
       - name: Run activation example
