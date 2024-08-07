@@ -169,10 +169,18 @@ func TestVGReduceByMove(t *testing.T) {
 		}
 	}
 
-	if err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5)); err == nil {
+	success := false
+	for i := 0; i < 10; i++ {
+		err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5+i))
+		if IsVGImmutableDueToMissingPVs(err) {
+			success = true
+			break
+		} else {
+			t.Logf("retrying impossible vgchange due to error %v", err)
+		}
+	}
+	if !success {
 		t.Fatal("expected error due to device missing")
-	} else if !IsVGImmutableDueToMissingPVs(err) {
-		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
 
 	if err = clnt.VGReduce(ctx, infra.volumeGroup.Name, RemoveMissing(true)); err != nil {

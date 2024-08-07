@@ -345,6 +345,8 @@ func (dev *loopbackDevice) Open() error {
 		args = append(args, fmt.Sprintf("--sector-size=%d", uint64(dev.size.Val)))
 	}
 
+	args = append(args, "--direct-io=on")
+
 	out, err := exec.CommandContext(ctx, "losetup", args...).CombinedOutput()
 	if err != nil {
 		return errors.Join(err, errors.New(string(out)))
