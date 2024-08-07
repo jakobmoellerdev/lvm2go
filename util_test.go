@@ -207,7 +207,7 @@ func MakeTestVolumeGroup(t *testing.T, options ...VGCreateOption) TestVolumeGrou
 }
 
 type TestLogicalVolume struct {
-	Options LVCreateOptionList
+	Options LVCreateOptionList `json:",inline"`
 }
 
 func (lv TestLogicalVolume) LogicalVolumeName() LogicalVolumeName {
@@ -293,9 +293,9 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) Test
 }
 
 type test struct {
-	LoopDevices                  []Size
-	Volumes                      []TestLogicalVolume
-	AdditionalVolumeGroupOptions []VGCreateOption
+	LoopDevices []Size              `json:",omitempty"`
+	Volumes     []TestLogicalVolume `json:",omitempty"`
+	VGOptions   []VGCreateOption    `json:",omitempty"`
 }
 
 type testInfra struct {
@@ -324,7 +324,7 @@ func (test test) SetupDevicesAndVolumeGroup(t *testing.T) testInfra {
 	}
 	devices := loopDevices.Devices()
 
-	volumeGroup := MakeTestVolumeGroup(t, append(test.AdditionalVolumeGroupOptions, PhysicalVolumesFrom(devices...))...)
+	volumeGroup := MakeTestVolumeGroup(t, append(test.VGOptions, PhysicalVolumesFrom(devices...))...)
 
 	var lvs []TestLogicalVolume
 	for _, lv := range test.Volumes {

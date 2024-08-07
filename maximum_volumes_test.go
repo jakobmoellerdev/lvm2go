@@ -39,7 +39,7 @@ func TestMaximumLogicalVolumes(t *testing.T) {
 				MustParseSize("4M"),
 			},
 		}},
-		AdditionalVolumeGroupOptions: []VGCreateOption{
+		VGOptions: []VGCreateOption{
 			MaximumLogicalVolumes(1),
 			MaximumPhysicalVolumes(1),
 		},
