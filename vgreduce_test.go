@@ -60,33 +60,35 @@ func TestVGReduceByForce(t *testing.T) {
 	}
 
 	if err := clnt.LVChange(ctx, infra.volumeGroup.Name, infra.lvs[0].LogicalVolumeName(), Deactivate); err != nil {
-		t.Fatal(err)
+		if !IsDeviceNotFound(err) {
+			t.Fatal(err)
+		}
 	}
 	// Wait to allow the device to be removed
 	time.Sleep(100 * time.Millisecond)
 	if err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5)); err == nil {
 		t.Fatal("expected error due to device missing")
-	} else if !IsLVMErrVGImmutableDueToMissingPVs(err) {
+	} else if !IsVGImmutableDueToMissingPVs(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
 
 	if err = clnt.VGReduce(ctx, infra.volumeGroup.Name, RemoveMissing(true)); err == nil {
 		t.Fatal("expected error due to device missing")
 	}
-	if !IsLVMCouldNotFindDeviceWithUUID(err) {
+	if !IsCouldNotFindDeviceWithUUID(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
-	if !IsLVMPartialLVNeedsRepairOrRemove(err) {
+	if !IsPartialLVNeedsRepairOrRemove(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
-	if !IsLVMErrThereAreStillPartialLVs(err) {
+	if !IsThereAreStillPartialLVs(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
-	if !IsLVMErrVGMissingPVs(err) {
+	if !IsVGMissingPVs(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
 
-	if vg, pv, lastWritten, ok := LVMErrVGMissingPVsDetails(err); !ok {
+	if vg, pv, lastWritten, ok := VGMissingPVsDetails(err); !ok {
 		t.Fatal("expected details")
 	} else {
 		if vg != string(infra.volumeGroup.Name) {
@@ -101,7 +103,9 @@ func TestVGReduceByForce(t *testing.T) {
 	}
 
 	if err = clnt.VGReduce(ctx, infra.volumeGroup.Name, RemoveMissing(true), Force(true)); err != nil {
-		t.Fatal(err)
+		if !IsDeviceNotFound(err) {
+			t.Fatal(err)
+		}
 	}
 
 	if err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5)); err != nil {
@@ -151,7 +155,7 @@ func TestVGReduceByMove(t *testing.T) {
 	if err := clnt.PVMove(ctx,
 		PhysicalVolumeName(infra.loopDevices[1].Device()),
 		PhysicalVolumeName(infra.loopDevices[0].Device()),
-	); err != nil && !IsLVMErrNoDataToMove(err) {
+	); err != nil && !IsNoDataToMove(err) {
 		t.Fatal(err)
 	}
 
@@ -160,17 +164,21 @@ func TestVGReduceByMove(t *testing.T) {
 	}
 
 	if err := clnt.LVChange(ctx, infra.volumeGroup.Name, infra.lvs[0].LogicalVolumeName(), Deactivate); err != nil {
-		t.Fatal(err)
+		if !IsDeviceNotFound(err) {
+			t.Fatal(err)
+		}
 	}
 
 	if err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5)); err == nil {
 		t.Fatal("expected error due to device missing")
-	} else if !IsLVMErrVGImmutableDueToMissingPVs(err) {
+	} else if !IsVGImmutableDueToMissingPVs(err) {
 		t.Fatal(fmt.Errorf("unexpected error: %v", err))
 	}
 
 	if err = clnt.VGReduce(ctx, infra.volumeGroup.Name, RemoveMissing(true)); err != nil {
-		t.Fatal(err)
+		if !IsDeviceNotFound(err) {
+			t.Fatal(err)
+		}
 	}
 
 	if err := clnt.VGChange(ctx, infra.volumeGroup.Name, MaximumPhysicalVolumes(5)); err != nil {

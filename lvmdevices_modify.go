@@ -105,7 +105,7 @@ func (c *client) DevModify(ctx context.Context, opts ...DevModifyOption) error {
 
 	return c.RunRaw(
 		ctx,
-		NoOpRawOutputProcessor(false),
+		NoOpRawOutputProcessor(),
 		append([]string{"lvmdevices"}, args.GetRaw()...)...,
 	)
 }

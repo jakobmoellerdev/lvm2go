@@ -17,6 +17,8 @@
 package lvm2go
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -56,8 +58,9 @@ func StreamedCommand(ctx context.Context, cmd *exec.Cmd) (io.ReadCloser, error) 
 	if err := cmd.Start(); err != nil {
 		return nil, errors.Join(err, stdoutClose(), stderrClose())
 	}
+
 	// Return a read closer that will wait for the command to finish when closed to release all resources.
-	return commandReadCloser{cmd: cmd, ReadCloser: stdout, stderr: stderr}, nil
+	return &commandReadCloser{cmd: cmd, ReadCloser: stdout, stderr: stderr}, nil
 }
 
 // commandReadCloser is a ReadCloser that calls the Wait function of the command when Close is called.
@@ -70,18 +73,30 @@ type commandReadCloser struct {
 
 // Close closes stdout and stderr and waits for the command to exit. Close
 // should not be called before all reads from stdout have completed.
-func (p commandReadCloser) Close() error {
-	// Read the stderr output after the read has finished since we are sure by then the command must have run.
-	stderr, err := io.ReadAll(p.stderr)
-	if err != nil {
-		return err
+func (p *commandReadCloser) Close() error {
+	var err error
+
+	// Fully Read the pipes before waiting for the command to finish.
+	stderr, stderrReadAllErr := io.ReadAll(p.stderr)
+	err = errors.Join(err, stderrReadAllErr)
+	stdout, stdoutReadAllErr := io.ReadAll(p.ReadCloser)
+	err = errors.Join(err, stdoutReadAllErr)
+
+	// create an error out of the stderr output if necessary
+	err = errors.Join(err, NewLVMStdErr(stderr))
+
+	// wait can result in an exit code error
+	err = errors.Join(err, NewExitCodeError(p.cmd.Wait()))
+
+	if len(stdout) > 0 {
+		slog.Warn("STDOUT still contained data after the command finished")
+		scanner := bufio.NewScanner(bytes.NewReader(stdout))
+		for scanner.Scan() {
+			slog.Warn(strings.TrimSpace(scanner.Text()))
+		}
 	}
 
-	if err := p.cmd.Wait(); err != nil {
-		// wait can result in an exit code error
-		return NewExitCodeError(err, stderr)
-	}
-	return nil
+	return err
 }
 
 func ignoreClosed(err error) error {

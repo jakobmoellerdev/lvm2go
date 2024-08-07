@@ -44,7 +44,7 @@ func (c *client) DevCheck(ctx context.Context, opts ...DevCheckOption) error {
 
 	return c.RunRaw(
 		ctx,
-		NoOpRawOutputProcessor(false),
+		NoOpRawOutputProcessor(),
 		append([]string{"lvmdevices", "--check"}, args.GetRaw()...)...,
 	)
 }

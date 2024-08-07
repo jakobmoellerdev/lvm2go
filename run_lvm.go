@@ -53,9 +53,9 @@ func (c *client) RunLVMInto(ctx context.Context, into any, args ...string) error
 		err = json.NewDecoder(output).Decode(&into)
 	}
 
-	err = errors.Join(output.Close(), err)
+	err = errors.Join(err, output.Close())
 
-	if IsLVMErrNoSuchCommand(err) {
+	if IsNoSuchCommand(err) {
 		return fmt.Errorf("%q is not a valid command: %w", strings.Join(args, " "), err)
 	}
 
@@ -68,16 +68,13 @@ func (c *client) RunLVMRaw(ctx context.Context, process RawOutputProcessor, args
 
 type RawOutputProcessor func(out io.Reader) error
 
-func NoOpRawOutputProcessor(expectOutput bool) RawOutputProcessor {
+func NoOpRawOutputProcessor() RawOutputProcessor {
 	return func(out io.Reader) error {
 		data, err := io.ReadAll(out)
 		if err != nil {
 			return fmt.Errorf("failed to read output: %v", err)
 		}
-		if expectOutput && len(data) == 0 {
-			return fmt.Errorf("expected output but got none")
-		}
-		if !expectOutput && len(data) > 0 {
+		if len(data) > 0 {
 			return fmt.Errorf("expected no output but got: %s", string(data))
 		}
 		return nil
