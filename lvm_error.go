@@ -17,14 +17,21 @@
 package lvm2go
 
 import (
+	"fmt"
 	"regexp"
-	"slices"
 )
 
 var (
-	// NotFoundPattern is a regular expression that matches the error message when a volume group or logical volume is not found.
-	// The volume group might not be present or the logical volume might not be present in the volume group.
-	NotFoundPattern = regexp.MustCompile(`Volume group "(.*?)" not found|Failed to find logical volume "(.*?)"`)
+
+	// NotFoundPatterns are regular expressions that matches the error message when a device, volume group or logical volume is not found.
+
+	volumeGroupNotFoundPattern   = `Volume group "(.*?)" not found`
+	VolumeGroupNotFoundPattern   = regexp.MustCompile(volumeGroupNotFoundPattern)
+	logicalVolumeNotFoundPattern = `Failed to find logical volume "(.*?)"`
+	LogicalVolumeNotFoundPattern = regexp.MustCompile(logicalVolumeNotFoundPattern)
+	deviceNotFoundPattern        = `Couldn't find device with uuid (.{6}-.{4}-.{4}-.{4}-.{4}-.{4}-.{6})`
+	DeviceNotFoundPattern        = regexp.MustCompile(deviceNotFoundPattern)
+	NotFoundPattern              = regexp.MustCompile(fmt.Sprintf(`%s|%s|%s`, volumeGroupNotFoundPattern, logicalVolumeNotFoundPattern, deviceNotFoundPattern))
 
 	// NoSuchCommandPattern is a regular expression that matches the error message when a command is not found.
 	NoSuchCommandPattern = regexp.MustCompile(`no such command`)
@@ -66,48 +73,65 @@ var (
 // Example:
 //
 //	func IsLVMCustomError(err error) bool {
-//		return IsLVMError(err, regexp.MustCompile(`custom error pattern`), 5)
+//		return IsLVMError(err, regexp.MustCompile(`custom error pattern`))
 //	}
-func IsLVMError(err error, pattern *regexp.Regexp, validExitCodes ...int) bool {
+func IsLVMError(err error, pattern *regexp.Regexp) bool {
 	if err == nil {
 		return false
 	}
-	lvmErr, ok := AsExitCodeError(err)
-	if !ok || !slices.Contains(validExitCodes, lvmErr.ExitCode()) {
-		return false
+
+	if stdErr, ok := AsLVMStdErr(err); ok {
+		for _, line := range stdErr.Lines(true) {
+			if pattern.Match(line) {
+				return true
+			}
+		}
 	}
-	return pattern.Match([]byte(lvmErr.Error()))
+
+	return false
 }
 
-func IsLVMErrNotFound(err error) bool {
-	return IsLVMError(err, NotFoundPattern, 5)
+func IsNotFound(err error) bool {
+	return IsLVMError(err, NotFoundPattern)
 }
 
-func IsLVMErrNoSuchCommand(err error) bool {
-	return IsLVMError(err, NoSuchCommandPattern, 2)
+func IsVolumeGroupNotFound(err error) bool {
+	return IsLVMError(err, VolumeGroupNotFoundPattern)
 }
 
-func IsLVMErrMaximumLogicalVolumesReached(err error) bool {
-	return IsLVMError(err, MaximumNumberOfLogicalVolumesPattern, 5)
+func IsLogicalVolumeNotFound(err error) bool {
+	return IsLVMError(err, LogicalVolumeNotFoundPattern)
 }
 
-func IsLVMErrMaximumPhysicalVolumesReached(err error) bool {
-	return IsLVMError(err, MaximumNumberOfPhysicalVolumesPattern, 5)
+func IsDeviceNotFound(err error) bool {
+	return IsLVMError(err, DeviceNotFoundPattern)
 }
 
-func IsLVMErrVGImmutableDueToMissingPVs(err error) bool {
-	return IsLVMError(err, CannotChangeVGWhilePVsAreMissingPattern, 5)
+func IsNoSuchCommand(err error) bool {
+	return IsLVMError(err, NoSuchCommandPattern)
 }
 
-func IsLVMCouldNotFindDeviceWithUUID(err error) bool {
-	return IsLVMError(err, CouldNotFindDeviceWithUUIDPattern, 5)
+func IsMaximumLogicalVolumesReached(err error) bool {
+	return IsLVMError(err, MaximumNumberOfLogicalVolumesPattern)
 }
 
-func IsLVMErrVGMissingPVs(err error) bool {
-	return IsLVMError(err, VGMissingPVsPattern, 5, 3)
+func IsMaximumPhysicalVolumesReached(err error) bool {
+	return IsLVMError(err, MaximumNumberOfPhysicalVolumesPattern)
 }
 
-func LVMErrVGMissingPVsDetails(err error) (vg string, pv string, lastWrittenTo string, ok bool) {
+func IsVGImmutableDueToMissingPVs(err error) bool {
+	return IsLVMError(err, CannotChangeVGWhilePVsAreMissingPattern)
+}
+
+func IsCouldNotFindDeviceWithUUID(err error) bool {
+	return IsLVMError(err, CouldNotFindDeviceWithUUIDPattern)
+}
+
+func IsVGMissingPVs(err error) bool {
+	return IsLVMError(err, VGMissingPVsPattern)
+}
+
+func VGMissingPVsDetails(err error) (vg string, pv string, lastWrittenTo string, ok bool) {
 	submatches := VGMissingPVsPattern.FindStringSubmatch(err.Error())
 	if submatches == nil {
 		return "", "", "", false
@@ -115,22 +139,22 @@ func LVMErrVGMissingPVsDetails(err error) (vg string, pv string, lastWrittenTo s
 	return submatches[1], submatches[2], submatches[3], true
 }
 
-func IsLVMPartialLVNeedsRepairOrRemove(err error) bool {
-	return IsLVMError(err, PartialLVNeedsRepairOrRemovePattern, 5)
+func IsPartialLVNeedsRepairOrRemove(err error) bool {
+	return IsLVMError(err, PartialLVNeedsRepairOrRemovePattern)
 }
 
-func IsLVMErrThereAreStillPartialLVs(err error) bool {
-	return IsLVMError(err, ThereAreStillPartialLVsPattern, 5)
+func IsThereAreStillPartialLVs(err error) bool {
+	return IsLVMError(err, ThereAreStillPartialLVsPattern)
 }
 
-func IsLVMErrNoDataToMove(err error) bool {
-	return IsLVMError(err, NoDataToMovePattern, 5)
+func IsNoDataToMove(err error) bool {
+	return IsLVMError(err, NoDataToMovePattern)
 }
 
-func IsLVMNoFreeExtents(err error) bool {
-	return IsLVMError(err, NoFreeExtentsPattern, 5)
+func IsNoFreeExtents(err error) bool {
+	return IsLVMError(err, NoFreeExtentsPattern)
 }
 
-func IsLVMErrConfigurationSectionNotCustomizableByProfile(err error) bool {
-	return IsLVMError(err, ConfigurationSectionNotCustomizableByProfilePattern, 5)
+func IsConfigurationSectionNotCustomizableByProfile(err error) bool {
+	return IsLVMError(err, ConfigurationSectionNotCustomizableByProfilePattern)
 }

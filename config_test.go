@@ -125,6 +125,7 @@ func Test_DecodeConfig(t *testing.T) {
 }
 
 func Test_EncodeDecode(t *testing.T) {
+	t.Parallel()
 	SkipOrFailTestIfNotRoot(t)
 	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -145,7 +146,7 @@ func Test_EncodeDecode(t *testing.T) {
 		t.Fatalf("profile dir is empty even though that was not expected")
 	}
 
-	profileName := "lvm2go-test"
+	profileName := "lvm2go-test-encode-decode"
 
 	testFile, err := os.OpenFile(filepath.Join(c.Config.ProfileDir, fmt.Sprintf("%s.profile", profileName)), os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
@@ -167,7 +168,7 @@ func Test_EncodeDecode(t *testing.T) {
 	c = &structConfig{}
 	if err := clnt.ReadAndDecodeConfig(ctx, c, ConfigTypeFull, Profile(profileName)); err == nil {
 		t.Fatalf("expected error due no customizable profile")
-	} else if !IsLVMErrConfigurationSectionNotCustomizableByProfile(err) {
+	} else if !IsConfigurationSectionNotCustomizableByProfile(err) {
 		t.Fatalf("expected error due no customizable profile, but got %v", err)
 	}
 }
@@ -252,13 +253,14 @@ func TestGetProfilePath(t *testing.T) {
 }
 
 func TestProfile(t *testing.T) {
+	t.Parallel()
 	SkipOrFailTestIfNotRoot(t)
 	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	ctx := context.Background()
 	clnt := GetTestClient(ctx)
 
-	profile := Profile("lvm2go-test")
+	profile := Profile("lvm2go-test-profile")
 
 	type structConfig struct {
 		Config struct {
@@ -283,7 +285,7 @@ func TestProfile(t *testing.T) {
 	}
 
 	err = clnt.ReadAndDecodeConfig(ctx, c, ConfigTypeFull, profile)
-	if !IsLVMErrConfigurationSectionNotCustomizableByProfile(err) {
+	if !IsConfigurationSectionNotCustomizableByProfile(err) {
 		t.Fatalf("expected error due no customizable profile, but got %v", err)
 	}
 }

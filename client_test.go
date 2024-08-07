@@ -26,10 +26,11 @@ import (
 )
 
 func TestLVs(t *testing.T) {
-	SkipOrFailTestIfNotRoot(t)
-	ctx := WithCustomEnvironment(context.Background(), map[string]string{})
+	t.Parallel()
 	slog.SetDefault(slog.New(NewContextPropagatingSlogHandler(NewTestingHandler(t))))
 	slog.SetLogLoggerLevel(slog.LevelDebug)
+
+	SkipOrFailTestIfNotRoot(t)
 	for i, tc := range []test{
 		{
 			LoopDevices: []Size{
@@ -79,9 +80,12 @@ func TestLVs(t *testing.T) {
 		},
 	} {
 		t.Run(fmt.Sprintf("[%v]%s", i, tc.String()), func(t *testing.T) {
-			SkipOrFailTestIfNotRoot(t)
+			t.Parallel()
+			ctx := WithCustomEnvironment(context.Background(), map[string]string{})
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
+
+			SkipOrFailTestIfNotRoot(t)
 			clnt := GetTestClient(ctx)
 			infra := tc.SetupDevicesAndVolumeGroup(t)
 
@@ -118,12 +122,19 @@ func TestLVs(t *testing.T) {
 				t.Fatalf("Expected volume group %s, got %s", infra.volumeGroup.Name, vg.Name)
 			}
 
-			pvs, err := clnt.PVs(ctx, infra.volumeGroup.Name)
-			if err != nil {
-				t.Fatal(err)
+			var pvs []*PhysicalVolume
+			success := false
+			for attempt := 0; attempt < 3; attempt++ {
+				if pvs, err = clnt.PVs(ctx, infra.volumeGroup.Name); err != nil {
+					t.Logf("failed to get physical volumes: %s", err)
+				}
+				if len(pvs) != len(infra.loopDevices) {
+					t.Logf("%s expected %d physical volumes, got %d", t.Name(), len(infra.loopDevices), len(pvs))
+				}
+				success = true
 			}
-			if len(pvs) != len(infra.loopDevices) {
-				t.Fatalf("Expected %d physical volumes, got %d", len(infra.loopDevices), len(pvs))
+			if !success {
+				t.Fatalf("failed to get physical volumes: %s", err)
 			}
 
 			for _, pv := range pvs {

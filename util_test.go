@@ -29,6 +29,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"sync"
 	"testing"
@@ -191,6 +192,10 @@ func MakeTestVolumeGroup(t *testing.T, options ...VGCreateOption) TestVolumeGrou
 
 	t.Cleanup(func() {
 		if err := c.VGRemove(ctx, name, Force(true)); err != nil {
+			if IsSkippableErrorForCleanup(err) {
+				t.Logf("volume group %s not removed due to skippable error, assuming removed: %s", name, err)
+				return
+			}
 			t.Fatal(fmt.Errorf("failed to remove volume group: %w", err))
 		}
 	})
@@ -274,11 +279,12 @@ func (vg TestVolumeGroup) MakeTestLogicalVolume(template TestLogicalVolume) Test
 	}
 	vg.t.Cleanup(func() {
 		if err := c.LVRemove(ctx, vg.Name, logicalVolumeName); err != nil {
-			if IsLVMErrNotFound(err) {
-				vg.t.Logf("logical volume %s not found, skipping removal", logicalVolumeName)
-			} else {
-				vg.t.Fatal(err)
+			if IsSkippableErrorForCleanup(err) {
+				vg.t.Logf("logical volume %s not removed due to skippable error, assuming removed: %v", logicalVolumeName, err)
+				return
 			}
+
+			vg.t.Fatal(err)
 		}
 	})
 	return TestLogicalVolume{
@@ -330,4 +336,33 @@ func (test test) SetupDevicesAndVolumeGroup(t *testing.T) testInfra {
 		volumeGroup: volumeGroup,
 		lvs:         lvs,
 	}
+}
+
+func IsSkippableErrorForCleanup(err error) bool {
+	if IsNotFound(err) {
+		return true
+	}
+	if IsDeviceNotFound(err) {
+		return true
+	}
+	if IsVolumeGroupNotFound(err) {
+		return true
+	}
+	return false
+}
+
+func IsErrorReadingLoopDevice(err error) bool {
+	stderr, ok := AsLVMStdErr(err)
+	if ok && regexp.MustCompile(`Error reading device /dev/loop\d+ at \d+ length \d+\.`).Match(stderr.Bytes()) {
+		return true
+	}
+	return false
+}
+
+func IsLoopDeviceNoPVID(err error) bool {
+	stderr, ok := AsLVMStdErr(err)
+	if ok && regexp.MustCompile(`Device /dev/loop\d+ has no PVID \(devices file .*\)`).Match(stderr.Bytes()) {
+		return true
+	}
+	return false
 }

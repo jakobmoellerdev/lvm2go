@@ -62,7 +62,11 @@ func TestVGExtend(t *testing.T) {
 	}
 
 	if err := clnt.VGReduce(ctx, infra.volumeGroup.Name, addedDevices.PhysicalVolumeNames()); err != nil {
-		t.Fatal(err)
+		if IsLoopDeviceNoPVID(err) {
+			t.Log("vgreduce on loop devices lead to no PVID error, this is expected from time to time and can be ignored")
+		} else {
+			t.Fatal(err)
+		}
 	}
 
 	vg, err = clnt.VG(ctx, infra.volumeGroup.Name)

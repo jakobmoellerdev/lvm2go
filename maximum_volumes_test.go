@@ -55,7 +55,7 @@ func TestMaximumLogicalVolumes(t *testing.T) {
 			MustParseSize("4M"),
 		); err == nil {
 			t.Fatal("expected error")
-		} else if !IsLVMErrMaximumLogicalVolumesReached(err) {
+		} else if !IsMaximumLogicalVolumesReached(err) {
 			t.Fatalf("expected maximum number of logical volumes reached error, but got %s", err)
 		}
 
@@ -69,7 +69,9 @@ func TestMaximumLogicalVolumes(t *testing.T) {
 		}
 		t.Cleanup(func() {
 			if err := clnt.LVRemove(ctx, infra.volumeGroup.Name, lvName); err != nil {
-				t.Fatal(err)
+				if !IsSkippableErrorForCleanup(err) {
+					t.Fatal(err)
+				}
 			}
 		})
 	})
@@ -82,7 +84,7 @@ func TestMaximumLogicalVolumes(t *testing.T) {
 			PhysicalVolumeName(additionalLoop.Device()),
 		); err == nil {
 			t.Fatal("expected error")
-		} else if !IsLVMErrMaximumPhysicalVolumesReached(err) {
+		} else if !IsMaximumPhysicalVolumesReached(err) {
 			t.Fatalf("expected maximum number of physical volumes reached error, but got %s", err)
 		}
 

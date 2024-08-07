@@ -285,24 +285,20 @@ func (dev *loopbackDevice) SetBackingFile(file string) error {
 		return ErrDeviceAlreadyClosed
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), dev.commandTimeout)
-	defer cancel()
-
 	if err := dev.setFile(file); err != nil {
 		return err
 	}
 
-	if _, err := os.Stat(dev.file); err == nil {
-		return fmt.Errorf("backing file %s already exists", dev.file)
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to check for backing file existence %s: %w", dev.file, err)
+	fd, err := os.OpenFile(dev.file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open or create backing file %s: %w", dev.file, err)
+	}
+	defer fd.Close()
+
+	if err := fd.Truncate(int64(dev.size.Val)); err != nil {
+		return fmt.Errorf("failed to truncate backing file %s to size %v: %w", dev.file, dev.size.Val, err)
 	}
 
-	args := []string{fmt.Sprintf("--size=%v", uint64(dev.size.Val)), dev.file}
-	out, err := exec.CommandContext(ctx, "truncate", args...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to truncate backing file: %w: %s", err, string(out))
-	}
 	return nil
 }
 

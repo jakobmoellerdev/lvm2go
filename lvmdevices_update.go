@@ -59,7 +59,7 @@ func (c *client) DevUpdate(ctx context.Context, opts ...DevUpdateOption) error {
 
 	return c.RunRaw(
 		ctx,
-		NoOpRawOutputProcessor(false),
+		NoOpRawOutputProcessor(),
 		append([]string{"lvmdevices", "--update"}, args.GetRaw()...)...,
 	)
 }
