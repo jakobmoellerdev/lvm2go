@@ -342,7 +342,7 @@ func IsSkippableErrorForCleanup(err error) bool {
 	if IsNotFound(err) {
 		return true
 	}
-	if IsDeviceNotFound(err) {
+	if IsErrorReadingLoopDevice(err) {
 		return true
 	}
 	if IsVolumeGroupNotFound(err) {
