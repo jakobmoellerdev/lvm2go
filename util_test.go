@@ -33,9 +33,14 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	. "github.com/jakobmoellerdev/lvm2go"
 )
+
+func init() {
+	DefaultWaitDelay = 3 * time.Second
+}
 
 const TestExtentBytes = 1024 * 1024 // 1MiB
 
@@ -66,7 +71,7 @@ func GetTestClient(ctx context.Context) Client {
 		return client
 	}
 	sharedTestClientOnce.Do(func() {
-		sharedTestClient = NewClient()
+		sharedTestClient = NewLockingClient(NewClient())
 	})
 	return sharedTestClient
 }
@@ -160,6 +165,9 @@ func MakeTestLoopbackDevice(t *testing.T, size Size) LoopbackDevice {
 		logger.DebugContext(ctx, "cleaning up test loopback device")
 		if err := loop.Close(); err != nil {
 			t.Fatal(err)
+		}
+		if err := GetTestClient(ctx).DevModify(ctx, DelDevice(loop.Device())); err != nil {
+			t.Logf("failed to remove loop device from devices %s: %v", loop.Device(), err)
 		}
 	})
 

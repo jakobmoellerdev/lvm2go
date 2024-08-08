@@ -129,7 +129,7 @@ func TestLVs(t *testing.T) {
 					t.Logf("failed to get physical volumes: %s", err)
 				}
 				if len(pvs) != len(infra.loopDevices) {
-					t.Logf("%s expected %d physical volumes, got %d", t.Name(), len(infra.loopDevices), len(pvs))
+					t.Logf("expected %d physical volumes, got %d, pvs may not be updated yet", len(infra.loopDevices), len(pvs))
 				}
 				success = true
 			}

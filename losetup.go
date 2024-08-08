@@ -258,7 +258,7 @@ func (dev *loopbackDevice) FindFree() error {
 	if dev.device != "" {
 		return fmt.Errorf("loopback device already has the device %s assigned", dev.device)
 	}
-	command := exec.CommandContext(ctx, "losetup", "-f")
+	command := exec.CommandContext(ctx, "/usr/sbin/losetup", "-f")
 	stdErr := bytes.Buffer{}
 	command.Stderr = &stdErr
 	loop := bytes.Buffer{}
