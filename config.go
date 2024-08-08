@@ -25,17 +25,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jakobmoellerdev/lvm2go/config"
+	"github.com/jakobmoellerdev/lvm2go/util"
 )
 
 var ErrProfileNameEmpty = errors.New("profile name is empty")
-
-const LVMConfigStructTag = "lvm"
-const LVMProfileExtension = ".profile"
 
 type (
 	ConfigOptions struct {
@@ -134,7 +132,7 @@ func (c *client) ReadAndDecodeConfig(ctx context.Context, v any, opts ...ConfigO
 
 	processor, query, err := getStructProcessorAndQuery(v)
 	if err != nil {
-		return fmt.Errorf("failed to get struct processor and query for config decode: %v", err)
+		return fmt.Errorf("failed to get struct processor and query for config Decode: %v", err)
 	}
 
 	queryArgs := append(query, args.GetRaw()...)
@@ -142,41 +140,8 @@ func (c *client) ReadAndDecodeConfig(ctx context.Context, v any, opts ...ConfigO
 	return c.RunLVMRaw(ctx, processor, append([]string{"config"}, queryArgs...)...)
 }
 
-func (c *client) WriteAndEncodeConfig(ctx context.Context, v any, writer io.Writer) error {
-	fieldsForConfigQuery, err := readLVMStructTag(v)
-	if err != nil {
-		return fmt.Errorf("failed to read lvm struct tag: %v", err)
-	}
-
-	fieldsByPrefix := map[string][]lvmStructTagFieldSpec{}
-	for _, field := range fieldsForConfigQuery {
-		fieldsByPrefix[field.prefix] = append(fieldsByPrefix[field.prefix], field)
-	}
-
-	if err = copyWithTimeout(ctx, writer, strings.NewReader(generateLVMConfigCreateComment()), 10*time.Second); err != nil {
-		return fmt.Errorf("failed to write config block: %v", err)
-	}
-
-	for prefix, field := range fieldsByPrefix {
-		buf := bytes.Buffer{}
-		if _, err = buf.WriteString(fmt.Sprintf("%s {\n", prefix)); err != nil {
-			return fmt.Errorf("failed to block start %s: %v", prefix, err)
-		}
-		for _, f := range field {
-			if _, err = buf.WriteString(fmt.Sprintf("\t%s\n", f)); err != nil {
-				return fmt.Errorf("failed to write field %s: %v", f.name, err)
-			}
-		}
-		if _, err = buf.WriteString("}\n"); err != nil {
-			return fmt.Errorf("failed to block end %s: %v", prefix, err)
-		}
-
-		if err = copyWithTimeout(ctx, writer, &buf, 10*time.Second); err != nil {
-			return fmt.Errorf("failed to write config block: %v", err)
-		}
-	}
-
-	return nil
+func (c *client) WriteAndEncodeConfig(_ context.Context, v any, writer io.Writer) error {
+	return config.NewLexingEncoder(writer).Encode(v)
 }
 
 func (c *client) GetProfileDirectory(ctx context.Context) (string, error) {
@@ -242,7 +207,7 @@ func (c *client) GetProfilePath(ctx context.Context, profile Profile) (string, e
 	}
 
 	if ext := filepath.Ext(path); ext == "" {
-		path = fmt.Sprintf("%s%s", path, LVMProfileExtension)
+		path = fmt.Sprintf("%s%s", path, config.LVMProfileExtension)
 	} else if ext != ".profile" {
 		return "", fmt.Errorf("%q is an invalid profile extension: %w", ext, ErrInvalidProfileExtension)
 	}
@@ -289,96 +254,52 @@ func (c *client) UpdateConfigFromPath(ctx context.Context, v any, path string) e
 // If the resulting configuration is smaller than the original, the difference is padded with empty bytes.
 // The configuration file is written back to the start of original configuration file.
 func updateConfig(ctx context.Context, v any, rw io.ReadWriteSeeker) error {
-	fieldsForConfigQuery, err := readLVMStructTag(v)
+	structMappings, err := config.DecodeFieldMappings(v)
 	if err != nil {
 		return fmt.Errorf("failed to read lvm struct tag: %v", err)
 	}
+	tokensToModify := config.FieldMappingsToTokens(structMappings)
 
-	// fieldRegex is a struct that holds a regexp and the field it is associated with
-	// This is used to update the configuration file with the new values
-	type fieldRegex struct {
-		*regexp.Regexp
-		field *lvmStructTagFieldSpec
-	}
-
-	// build a list of regexes to match the fields in the configuration file
-	fieldRegexes := make([]fieldRegex, 0, len(fieldsForConfigQuery))
-	for _, field := range fieldsForConfigQuery {
-		// The pattern is a regex that matches the field name and its value if uncommented
-		// It also matches the comment that indicates the field was edited by the client.
-		// Valid:
-		//  field = value
-		//  field = "value"
-		// Invalid:
-		//  # field = value
-		//  # field = "value"
-		// It incorporates various tabbing and spacing configurations as well
-		pattern := fmt.Sprintf(`(?m)((\t# .*?\n)*|)^\s%s\s*=\s*(\".*?\"|\d+)?$`, field.name)
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return fmt.Errorf("failed to compile regexp: %v", err)
-		}
-		fieldRegexes = append(fieldRegexes, fieldRegex{Regexp: re, field: &field})
-	}
-
-	// Read the entirety of the config, we will use this as the base for the replacement
-	raw, err := io.ReadAll(rw)
+	data, err := io.ReadAll(rw)
 	if err != nil {
 		return fmt.Errorf("failed to read configuration: %v", err)
 	}
-	// keep track of the offset so we can seek back to the start of the configuration
-	// after we have finished writing the new configuration.
-	// Since our new configuration will be the same size or larger than the original,
-	offset := len(raw)
+	reader := bytes.NewReader(data)
 
-	comment := generateLVMConfigEditComment()
-	for _, check := range fieldRegexes {
-		// Check if the field is present in the configuration
-		if idx := check.FindIndex(raw); idx == nil {
-			// If the field is not found, add it to the section with a comment to indicate it was added
-			// The section pattern is a regex that matches the section name and the fields within it
-			// Examples:
-			// section {
-			// \tfield = value
-			// }
-			sectionPattern := fmt.Sprintf(`(?sm)(%s\s*\{.*?)(^\s*\})`, check.field.prefix)
-			sectionRe := regexp.MustCompile(sectionPattern)
-			raw = sectionRe.ReplaceAllFunc(raw, func(section []byte) []byte {
-				return sectionRe.ReplaceAll(section, []byte(fmt.Sprintf("${1}%s\t%s\n$2", comment, check.field)))
-			})
-		} else {
-			// Update the field if found and add a comment to indicate it was edited
-			raw = check.ReplaceAll(raw, []byte(fmt.Sprintf("%s\t%s", comment, check.field)))
-		}
+	tokensFromFile, err := config.NewBufferedLexer(reader).Lex()
+	if err != nil {
+		return fmt.Errorf("failed to read configuration: %v", err)
 	}
 
-	if diff := len(raw) - offset; diff < 0 {
+	// First merge all assignments from the new struct into the existing configuration
+	newTokens := config.AssignmentsWithSections(tokensFromFile).
+		OverrideWith(config.AssignmentsWithSections(tokensToModify))
+
+	// Then append any new assignments at the end of the sections
+	tokens := config.AppendAssignmentsAtEndOfSections(tokensFromFile, newTokens)
+
+	// Write the new configuration to a buffer
+	buf := bytes.NewBuffer(make([]byte, 0, len(data)))
+	if err := config.NewLexingEncoder(buf).Encode(tokens); err != nil {
+		return fmt.Errorf("failed to encode new configuration: %v", err)
+	}
+
+	if diff := buf.Cap() - len(data); diff < 0 {
 		// If the old configuration is smaller than the new configuration, we need to append the difference
 		// with empty bytes to ensure we do not have leftover data from the old configuration
-		raw = append(raw, make([]byte, -diff)...)
+		buf.Write(make([]byte, -diff))
 	}
-
 	// We want to write from the start, so seek back to the start of the configuration
-	if _, err = rw.Seek(int64(-offset), io.SeekCurrent); err != nil {
+	if _, err = rw.Seek(int64(-len(data)), io.SeekCurrent); err != nil {
 		return fmt.Errorf("failed to seek to start of configuration: %v", err)
 	}
 
 	// Write the new configuration based on the old configuration with the new fields
-	return copyWithTimeout(ctx, rw, bytes.NewReader(raw), 10*time.Second)
-}
-
-// generateLVMConfigEditComment generates a comment to be added to the configuration file
-// This comment is used to indicate that the field was edited by the client.
-func generateLVMConfigEditComment() string {
-	return fmt.Sprintf(`	# This field was edited by %s at %s
-	# Proceed carefully when editing as it can have unintended consequences with code relying on this field.
-`, ModuleID(), time.Now().Format(time.RFC3339))
+	return copyWithTimeout(ctx, rw, buf, 10*time.Second)
 }
 
 func generateLVMConfigCreateComment() string {
-	return fmt.Sprintf(`# configuration created by %s at %s
-	# Proceed carefully when editing as it can have unintended consequences with code relying on this field.
-`, ModuleID(), time.Now().Format(time.RFC3339))
+	return fmt.Sprintf(`configuration created by %s at %s`, util.ModuleID(), time.Now().Format(time.RFC3339))
 }
 
 // GetFromRawConfig retrieves a value from a RawConfig by key and attempts to cast it to the type of T.
@@ -430,94 +351,19 @@ func (opts *ConfigOptions) ApplyToArgs(args Arguments) error {
 }
 
 func getStructProcessorAndQuery(v any) (RawOutputProcessor, []string, error) {
-	fieldsForConfigQuery, err := readLVMStructTag(v)
+	fieldsForConfigQuery, err := config.DecodeFieldMappings(v)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read lvm struct tag: %v", err)
 	}
 
 	var query []string
 	for _, field := range fieldsForConfigQuery {
-		query = append(query, fmt.Sprintf("%s/%s", field.prefix, field.name))
+		query = append(query, fmt.Sprintf("%s/%s", field.Prefix, field.Name))
 	}
 
 	return func(out io.Reader) error {
-		scanner := bufio.NewScanner(out)
-		for scanner.Scan() {
-			split := strings.Split(scanner.Text(), "=")
-			if len(split) != 2 {
-				return fmt.Errorf("unexpected line (no key value identification): %s", scanner.Text())
-			}
-			k, v := split[0], strings.Trim(split[1], "\"")
-
-			if field, ok := fieldsForConfigQuery[k]; ok {
-				if field.Kind() == reflect.String {
-					field.SetString(v)
-				} else if field.Kind() == reflect.Int64 {
-					if parsed, err := strconv.ParseInt(v, 10, 64); err != nil {
-						return fmt.Errorf("failed to parse int64 for field %s: %v", k, err)
-					} else {
-						field.SetInt(parsed)
-					}
-				} else {
-					return fmt.Errorf("unsupported field type %s", field.Kind())
-				}
-			}
-		}
-
-		return scanner.Err()
+		return config.NewLexingConfigDecoderWithFieldMapping(out, fieldsForConfigQuery).Decode()
 	}, query, nil
-}
-
-type lvmStructTagFieldSpec struct {
-	prefix string
-	name   string
-	reflect.Value
-}
-
-func (f lvmStructTagFieldSpec) String() string {
-	switch f.Kind() {
-	case reflect.Int64:
-		return fmt.Sprintf("%s = %d", f.name, f.Int())
-	default:
-		return fmt.Sprintf("%s = %q", f.name, f.Value.String())
-	}
-}
-
-func readLVMStructTag(v any) (map[string]lvmStructTagFieldSpec, error) {
-	fields, typeAccessor, valueAccessor, err := accessStructOrPointerToStruct(v)
-	if err != nil {
-		return nil, err
-	}
-
-	tagOrIgnore := func(tag reflect.StructTag) (string, bool) {
-		return tag.Get(LVMConfigStructTag), tag.Get(LVMConfigStructTag) == "-"
-	}
-
-	fieldSpecs := make(map[string]lvmStructTagFieldSpec)
-	for i := range fields {
-		outerField := typeAccessor(i)
-		prefix, ignore := tagOrIgnore(outerField.Tag)
-		if ignore {
-			continue
-		}
-		fields, typeAccessor, valueAccessor, err := accessStructOrPointerToStruct(valueAccessor(i))
-		if err != nil {
-			return nil, err
-		}
-		for j := range fields {
-			innerField := typeAccessor(j)
-			name, ignore := tagOrIgnore(innerField.Tag)
-			if ignore {
-				continue
-			}
-			fieldSpecs[name] = lvmStructTagFieldSpec{
-				prefix,
-				name,
-				valueAccessor(j),
-			}
-		}
-	}
-	return fieldSpecs, nil
 }
 
 // copyWithTimeout copies data from r to w with a timeout.

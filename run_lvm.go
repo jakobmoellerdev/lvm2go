@@ -42,7 +42,7 @@ func (c *client) RunLVMInto(ctx context.Context, into any, args ...string) error
 		return fmt.Errorf("failed to execute command: %v", err)
 	}
 
-	// if we don't decode the output into a struct, we can still log the command results from stdout.
+	// if we don't Decode the output into a struct, we can still log the command results from stdout.
 	if into == nil {
 		scanner := bufio.NewScanner(output)
 		for scanner.Scan() {

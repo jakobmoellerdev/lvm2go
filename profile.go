@@ -20,9 +20,11 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/jakobmoellerdev/lvm2go/config"
 )
 
-var ErrInvalidProfileExtension = fmt.Errorf("profile extension must be empty or %q", LVMProfileExtension)
+var ErrInvalidProfileExtension = fmt.Errorf("profile extension must be empty or %q", config.LVMProfileExtension)
 
 type Profile string
 
@@ -31,7 +33,7 @@ func (opt Profile) ApplyToArgs(args Arguments) error {
 		return nil
 	}
 	ext := filepath.Ext(string(opt))
-	if ext != "" && ext != LVMProfileExtension {
+	if ext != "" && ext != config.LVMProfileExtension {
 		return ErrInvalidProfileExtension
 	}
 

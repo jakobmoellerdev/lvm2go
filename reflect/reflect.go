@@ -14,14 +14,14 @@
  limitations under the License.
 */
 
-package lvm2go
+package reflect
 
 import (
 	"fmt"
 	"reflect"
 )
 
-// accessStructOrPointerToStruct returns the number of fields in the struct,
+// AccessStructOrPointerToStruct returns the number of fields in the struct,
 // a function to access the fields, and a function to access the values of the fields.
 // If the value is a pointer, its reference will be used or initialized if it is nil.
 // If the value is not a struct or a pointer to a struct, an error will be returned.
@@ -30,7 +30,7 @@ import (
 // The fieldAccessor and valueAccessor functions are safe to use in a loop and will not panic for idx < fieldNum.
 // The valueAccessor function will dereference pointers if necessary and initialize them if they are nil.
 // The valueAccessor function will panic if idx >= fieldNum.
-func accessStructOrPointerToStruct(v interface{}) (
+func AccessStructOrPointerToStruct(v interface{}) (
 	fieldNum int,
 	fieldAccessor func(idx int) reflect.StructField,
 	valueAccessor func(idx int) reflect.Value,
