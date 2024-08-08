@@ -20,6 +20,8 @@ import (
 	"strings"
 )
 
+const SystemDevices DevicesFile = "system.devices"
+
 type Devices []string
 
 func (opt Devices) ApplyToVGsOptions(opts *VGsOptions) {

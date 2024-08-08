@@ -126,8 +126,6 @@ func CommandWithCustomEnvironment(ctx context.Context, cmd *exec.Cmd) *exec.Cmd 
 		for k, v := range env {
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
-	} else {
-		cmd.Env = os.Environ()
 	}
 	return cmd
 }
